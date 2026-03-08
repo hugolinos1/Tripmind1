@@ -1,0 +1,233 @@
+/**
+ * Core Philosophy: This ruleset enforces a strict user-ownership model. All private user data, including
+ * profiles, trips, and itineraries, is stored within a path structure dedicated to that user
+ * (e.g., /users/{userId}/...). This ensures that users can only access their own information.
+ *
+ * Data Structure: The data is organized hierarchically. A top-level `users` collection holds individual
+ * user documents. Nested under each user are their private `trips`. Each trip contains subcollections for
+ * `days`, which in turn contain `events`, and so on. A separate top-level collection, `shared_trips`,
+ * is used to store public, read-only versions of trips, ensuring a clean separation between private
+ * and public data.
+ *
+ * Key Security Decisions:
+ * - User Isolation: All private data access is restricted by checking if the authenticated user's ID
+ *   matches the {userId} in the document path.
+ * - No User Listing: It is not possible to list all documents in the top-level `users` collection.
+ * - Public vs. Private Data: Structural segregation is used to handle data with different privacy
+ *   needs. Private trips are in `/users/{userId}/trips`, while public, shareable versions are in
+ *   `/shared_trips`. Client-side writes to the public collection are disabled; it must be managed
+ *   by a trusted backend process.
+ * - No Deletion of User Profiles: To prevent accidental data loss and preserve user integrity,
+ *   users cannot delete their own root profile document directly via the client.
+ *
+ * Denormalization for Authorization: To ensure fast and secure authorization, nested documents are
+ * expected to contain denormalized IDs from their parents (e.g., an `Event` document should store its
+ * parent `userId`, `tripId`, and `dayId`). These rules enforce the correct setting of these IDs upon
+ * creation and ensure they are immutable upon update, guaranteeing relational integrity and avoiding
+ * costly `get()` calls in rules.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------------------------------------------
+    // Helper Functions
+    // --------------------------------------------------------------------
+
+    /**
+     * Checks if a user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user is the owner of the document,
+     * identified by the userId provided from the path.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    /**
+     * Checks if the document exists and if the current user is the owner.
+     * Used for safe update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that the User document's internal ID matches the document's path ID on creation.
+     */
+    function isUserDataValidOnCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+    
+    /**
+     * Enforces immutability of the User's unique ID during updates.
+     */
+    function isUserDataValidOnUpdate() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * Validates that the Trip document's internal userId matches the owner's ID on creation.
+     */
+    function isTripDataValidOnCreate(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * Enforces immutability of the Trip's owner ID during updates.
+     */
+    function isTripDataValidOnUpdate() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    /**
+     * Validates relational integrity for a new Day document.
+     * Ensures the owner and trip IDs in the data match the path.
+     */
+    function isDayDataValidOnCreate(userId, tripId) {
+      return request.resource.data.userId == userId && request.resource.data.tripId == tripId;
+    }
+    
+    /**
+     * Enforces immutability of a Day's owner and trip IDs during updates.
+     * The `tripId` parameter was unused and has been removed from the signature.
+     */
+    function isDayDataValidOnUpdate() {
+      return request.resource.data.userId == resource.data.userId && request.resource.data.tripId == resource.data.tripId;
+    }
+    
+    /**
+     * Validates relational integrity for a new Event document.
+     * Ensures the owner, trip, and day IDs in the data match the path.
+     */
+    function isEventDataValidOnCreate(userId, tripId, dayId) {
+      return request.resource.data.userId == userId && request.resource.data.tripId == tripId && request.resource.data.dayId == dayId;
+    }
+
+    /**
+     * Enforces immutability of an Event's owner, trip, and day IDs during updates.
+     * The `tripId` and `dayId` parameters were unused and have been removed from the signature.
+     */
+    function isEventDataValidOnUpdate() {
+      return request.resource.data.userId == resource.data.userId && request.resource.data.tripId == resource.data.tripId && request.resource.data.dayId == resource.data.dayId;
+    }
+    
+    /**
+     * Validates relational integrity for a new Enrichment document.
+     * Ensures all parent IDs in the data match the path.
+     */
+    function isEnrichmentDataValidOnCreate(userId, tripId, dayId, eventId) {
+      return request.resource.data.userId == userId && request.resource.data.tripId == tripId && request.resource.data.dayId == dayId && request.resource.data.eventId == eventId;
+    }
+    
+    /**
+     * Enforces immutability of an Enrichment's parent IDs during updates.
+     * The `tripId`, `dayId`, and `eventId` parameters were unused and have been removed from the signature.
+     */
+    function isEnrichmentDataValidOnUpdate() {
+      return request.resource.data.userId == resource.data.userId && request.resource.data.tripId == resource.data.tripId && request.resource.data.dayId == resource.data.dayId && request.resource.data.eventId == resource.data.eventId;
+    }
+    
+    // --------------------------------------------------------------------
+    // Collection Rules
+    // --------------------------------------------------------------------
+
+    /**
+     * @description Controls access to a user's own profile document.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user creating their own profile document for the first time.
+     * @deny (get) An authenticated user trying to read another user's profile.
+     * @principle A user can only create, read, and update their own profile. Deletion is disallowed.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isUserDataValidOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isUserDataValidOnUpdate();
+      allow delete: if false;
+
+      /**
+       * @description Controls access to a user's private trips.
+       * @path /users/{userId}/trips/{tripId}
+       * @allow (create) An authenticated user creating a new trip under their own profile.
+       * @deny (list) An authenticated user trying to list trips belonging to another user.
+       * @principle Enforces strict ownership; only the user can perform CRUD operations on their trips.
+       */
+      match /trips/{tripId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isTripDataValidOnCreate(userId);
+        allow update: if isExistingOwner(userId) && isTripDataValidOnUpdate();
+        allow delete: if isExistingOwner(userId);
+
+        /**
+         * @description Controls access to the daily itineraries within a user's trip.
+         * @path /users/{userId}/trips/{tripId}/days/{dayId}
+         * @allow (update) The trip owner updating a day's notes in their own trip.
+         * @deny (create) A user trying to add a day to someone else's trip.
+         * @principle Path-based ownership ensures that access to a day is inherited from its parent trip.
+         */
+        match /days/{dayId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId) && isDayDataValidOnCreate(userId, tripId);
+          // Call site updated: Removed unused 'tripId' argument.
+          allow update: if isExistingOwner(userId) && isDayDataValidOnUpdate();
+          allow delete: if isExistingOwner(userId);
+
+          /**
+           * @description Controls access to specific events within a day's itinerary.
+           * @path /users/{userId}/trips/{tripId}/days/{dayId}/events/{eventId}
+           * @allow (delete) The trip owner deleting an event from their own itinerary.
+           * @deny (get) Any user trying to read an event from a trip they do not own.
+           * @principle Validates relational integrity by ensuring created events have correct parent IDs.
+           */
+          match /events/{eventId} {
+            allow get: if isOwner(userId);
+            allow list: if isOwner(userId);
+            allow create: if isOwner(userId) && isEventDataValidOnCreate(userId, tripId, dayId);
+            // Call site updated: Removed unused 'tripId' and 'dayId' arguments.
+            allow update: if isExistingOwner(userId) && isEventDataValidOnUpdate();
+            allow delete: if isExistingOwner(userId);
+
+            /**
+             * @description Controls access to AI enrichment data for a specific event.
+             * @path /users/{userId}/trips/{tripId}/days/{dayId}/events/{eventId}/enrichments/{enrichmentId}
+             * @allow (get) The trip owner reading the enrichment data for one of their events.
+             * @deny (update) Any user trying to modify enrichment data in a trip they do not own.
+             * @principle Deeply nested data is still protected by the top-level user ownership model.
+             */
+            match /enrichments/{enrichmentId} {
+              allow get: if isOwner(userId);
+              allow list: if isOwner(userId);
+              allow create: if isOwner(userId) && isEnrichmentDataValidOnCreate(userId, tripId, dayId, eventId);
+              // Call site updated: Removed unused 'tripId', 'dayId', and 'eventId' arguments.
+              allow update: if isExistingOwner(userId) && isEnrichmentDataValidOnUpdate();
+              allow delete: if isExistingOwner(userId);
+            }
+          }
+        }
+      }
+    }
+
+    /**
+     * @description Provides public, read-only access to trips that have been explicitly shared.
+     * @path /shared_trips/{shareToken}
+     * @allow (get) Any user, including unauthenticated ones, reading a shared trip.
+     * @deny (create, update, delete) Any client trying to write to this collection.
+     * @principle This collection is for public consumption and is managed by a trusted backend, not clients.
+     */
+    match /shared_trips/{shareToken} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
