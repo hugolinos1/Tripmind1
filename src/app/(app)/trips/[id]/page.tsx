@@ -12,8 +12,7 @@ import EventCard from '@/components/app/event-card';
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { generateTripItinerary } from '@/ai/flows/ai-generate-trip-itinerary';
-import type { GenerateItineraryInput } from '@/ai/schemas/trip-itinerary-schemas';
+import { generateTripItinerary, type GenerateItineraryInput } from '@/ai/flows/ai-generate-trip-itinerary';
 
 const MapView = dynamic(() => import('@/components/app/map-view'), {
   ssr: false,
