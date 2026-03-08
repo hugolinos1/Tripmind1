@@ -69,6 +69,7 @@ const generateItineraryPrompt = ai.definePrompt({
   name: 'generateItineraryPrompt',
   input: { schema: GenerateItineraryInputSchema },
   output: { schema: GenerateItineraryOutputSchema },
+  model: 'googleai/gemini-1.5-flash-latest',
   config: {
     temperature: 0.7,
   },
