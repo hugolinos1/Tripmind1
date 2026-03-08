@@ -74,7 +74,7 @@ const generateItineraryPrompt = ai.definePrompt({
   config: {
     temperature: 0.7,
   },
-  prompt: `Tu es un planificateur de voyage expert et un assistant IA. Ta mission est de générer un itinéraire de voyage détaillé, jour par jour, en te basant sur les préférences fournies. La réponse doit être un objet JSON valide qui adhère strictement au schéma de sortie.
+  prompt: `Tu es un planificateur de voyage expert et un assistant IA. Ta mission est de générer un itinéraire de voyage détaillé, jour par jour, en te basant sur les préférences fournies. La réponse doit être un objet JSON valide qui adhère strictement au schéma de sortie fourni par le système.
 
 Instructions Clés :
 1.  **Itinéraire Chronologique :** Les événements de chaque journée doivent être dans un ordre logique et chronologique.
@@ -106,8 +106,7 @@ Préférences de voyage:
   - Lieux à voir absolument: {{#each preferences.mustSee}}- {{this}}
   {{/each}}
   
-Réponds uniquement en format JSON. Le schéma est le suivant :
-${JSON.stringify(GenerateItineraryOutputSchema.jsonSchema(), null, 2)}`
+Réponds uniquement en format JSON, en suivant le schéma fourni par le système.`
 });
 
 const generateTripItineraryFlow = ai.defineFlow(
