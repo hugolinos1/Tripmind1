@@ -89,7 +89,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
     } catch (error) {
         console.error("Failed to generate itinerary:", error);
-        setGenerationError("La génération de l'itinéraire a échoué. Veuillez réessayer.");
+        const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
+        setGenerationError(`La génération a échoué : ${errorMessage}`);
     } finally {
         setIsGenerating(false);
     }

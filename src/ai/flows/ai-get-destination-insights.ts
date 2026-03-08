@@ -206,8 +206,7 @@ const getDestinationInsightsPrompt = ai.definePrompt({
   name: 'getDestinationInsightsPrompt',
   input: { schema: GetDestinationInsightsInputSchema },
   output: { schema: GetDestinationInsightsOutputSchema },
-  // Use the specified model for OpenRouter
-  model: 'openrouter/free',
+  model: 'googleai/gemini-1.5-flash-latest',
   prompt: `
     You are an expert travel guide providing comprehensive practical information about travel destinations.
     Your goal is to provide a detailed, well-structured JSON response based on the user's request.
