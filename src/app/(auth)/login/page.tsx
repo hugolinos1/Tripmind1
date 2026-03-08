@@ -57,10 +57,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -95,7 +100,7 @@ export default function LoginPage() {
     });
   };
 
-  if (isUserLoading || user) {
+  if (!isClient || isUserLoading || user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-slate-900 to-bg-dark">
         <div className="mx-auto max-w-sm w-full space-y-4">
@@ -218,5 +223,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
