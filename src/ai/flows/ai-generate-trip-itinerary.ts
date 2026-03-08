@@ -27,7 +27,7 @@ const generateItineraryPrompt = ai.definePrompt({
   config: {
     temperature: 0.7,
   },
-  system: `Tu es un planificateur de voyage expert et un assistant IA. Ta mission est de générer un itinéraire de voyage détaillé, jour par jour, en te basant sur les préférences fournies. La réponse doit être un objet JSON valide qui adhère strictement au schéma de sortie.
+  prompt: `Tu es un planificateur de voyage expert et un assistant IA. Ta mission est de générer un itinéraire de voyage détaillé, jour par jour, en te basant sur les préférences fournies. La réponse doit être un objet JSON valide qui adhère strictement au schéma de sortie.
 
 Instructions Clés :
 1.  **Itinéraire Chronologique :** Les événements de chaque journée doivent être dans un ordre logique et chronologique.
@@ -35,8 +35,11 @@ Instructions Clés :
 3.  **Détails Complets :** Pour chaque événement, fournis toutes les informations requises : type, titre, description, heure de début, durée, nom du lieu, adresse complète, et coordonnées géographiques (latitude et longitude). Si une adresse exacte n'est pas pertinente (par ex. "Balade dans le quartier"), donne une adresse centrale ou une description claire de la zone, avec des coordonnées approximatives.
 4.  **Réalisme :** Crée un itinéraire réaliste. Prends en compte les temps de trajet entre les lieux, les heures d'ouverture probables et un rythme de voyage équilibré en fonction de la préférence "pace".
 5.  **Formatage Strict :** La sortie doit être uniquement l'objet JSON, sans texte d'introduction, de conclusion ou de commentaires.
-6.  **Gestion des Dates :** Calcule les dates pour chaque jour de l'itinéraire en te basant sur les 'startDate' et 'endDate' fournies.`,
-  prompt: `Génère un itinéraire pour un voyage intitulé "{{title}}", à destination de {{destinations}} du {{startDate}} au {{endDate}}.
+6.  **Gestion des Dates :** Calcule les dates pour chaque jour de l'itinéraire en te basant sur les 'startDate' et 'endDate' fournies.
+
+---
+
+Génère un itinéraire pour un voyage intitulé "{{title}}", à destination de {{destinations}} du {{startDate}} au {{endDate}}.
 Détails des voyageurs:
   - Adultes: {{travelers.adults}}
   - Enfants: {{#if travelers.children}}{{#each travelers.children}} {{this}}{{/each}}{{else}}Aucun{{/if}}
@@ -54,7 +57,10 @@ Préférences de voyage:
   - Lieux déjà visités: {{#each preferences.alreadyVisited}}- {{this}}
   {{/each}}
   - Lieux à voir absolument: {{#each preferences.mustSee}}- {{this}}
-  {{/each}}`
+  {{/each}}
+  
+Réponds uniquement en format JSON. Le schéma est le suivant :
+${JSON.stringify(GenerateItineraryOutputSchema.jsonSchema(), null, 2)}`
 });
 
 const generateTripItineraryFlow = ai.defineFlow(
