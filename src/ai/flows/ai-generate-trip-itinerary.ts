@@ -51,7 +51,7 @@ const ItineraryDaySchema = z.object({
   events: z.array(ItineraryEventSchema).describe('List of events for the day, ordered chronologically.'),
 });
 
-const GenerateItineraryInputSchema = z.object({
+export const GenerateItineraryInputSchema = z.object({
   tripId: z.string().describe('The ID of the trip.'),
   title: z.string().describe('The title of the trip.'),
   destinations: z.array(z.string()).describe('A list of destinations for the trip, e.g., ["Paris", "Lyon"].'),
@@ -62,7 +62,7 @@ const GenerateItineraryInputSchema = z.object({
 });
 export type GenerateItineraryInput = z.infer<typeof GenerateItineraryInputSchema>;
 
-const GenerateItineraryOutputSchema = z.array(ItineraryDaySchema).describe('A detailed day-by-day itinerary.');
+export const GenerateItineraryOutputSchema = z.array(ItineraryDaySchema).describe('A detailed day-by-day itinerary.');
 export type GenerateItineraryOutput = z.infer<typeof GenerateItineraryOutputSchema>;
 
 
@@ -70,11 +70,11 @@ const generateItineraryPrompt = ai.definePrompt({
   name: 'generateItineraryPrompt',
   input: { schema: GenerateItineraryInputSchema },
   output: { schema: GenerateItineraryOutputSchema },
-  model: 'googleai/gemini-1.5-flash-latest',
+  model: 'googleai/gemini-1.5-pro-latest',
   config: {
     temperature: 0.7,
   },
-  prompt: `Tu es un planificateur de voyage expert et un assistant IA. Ta mission est de générer un itinéraire de voyage détaillé, jour par jour, en te basant sur les préférences fournies. La réponse doit être un objet JSON valide qui adhère strictement au schéma de sortie fourni par le système.
+  prompt: `Tu es un planificateur de voyage expert et un assistant IA. Ta mission est de générer un itinéraire de voyage détaillé, jour par jour, en te basant sur les préférences fournies.
 
 Instructions Clés :
 1.  **Itinéraire Chronologique :** Les événements de chaque journée doivent être dans un ordre logique et chronologique.
@@ -106,7 +106,8 @@ Préférences de voyage:
   - Lieux à voir absolument: {{#each preferences.mustSee}}- {{this}}
   {{/each}}
   
-Réponds uniquement en format JSON, en suivant le schéma fourni par le système.`
+Réponds uniquement en format JSON. Voici le schéma attendu pour la réponse:
+${JSON.stringify(GenerateItineraryOutputSchema.jsonSchema(), null, 2)}`
 });
 
 const generateTripItineraryFlow = ai.defineFlow(
