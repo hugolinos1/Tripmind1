@@ -106,8 +106,7 @@ Préférences de voyage:
   - Lieux à voir absolument: {{#each preferences.mustSee}}- {{this}}
   {{/each}}
   
-Réponds uniquement en format JSON. Voici le schéma attendu pour la réponse:
-${JSON.stringify(GenerateItineraryOutputSchema.jsonSchema(), null, 2)}`
+Réponds uniquement en format JSON.`
 });
 
 const generateTripItineraryFlow = ai.defineFlow(
