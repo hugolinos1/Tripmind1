@@ -6,19 +6,20 @@ import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Bot, Calendar, Info, MapPin, Share2 } from 'lucide-react';
+import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import EventCard from '@/components/app/event-card';
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { generateTripItinerary, type GenerateItineraryInput } from '@/ai/flows/ai-generate-trip-itinerary';
 
 const MapView = dynamic(() => import('@/components/app/map-view'), {
   ssr: false,
   loading: () => <div className="bg-slate-800 animate-pulse w-full h-full" />,
 });
 
-const mockTrip = {
+const initialTrip = {
   id: "1",
   title: "Aventure au Japon",
   destinations: ["Tokyo", "Kyoto"],
@@ -29,18 +30,71 @@ const mockTrip = {
     date: new Date(new Date("2024-08-15").setDate(new Date("2024-08-15").getDate() + i)),
     orderIndex: i,
     events: i === 0 ? [
-        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Shinjuku, Tokyo", isAiEnriched: true, lat: 35.695, lng: 139.700 },
-        { id: "e2", type: "visit" as const, title: "Exploration de Shinjuku Gyoen", startTime: "16:30", durationMinutes: 120, locationName: "Shinjuku Gyoen National Garden", isAiEnriched: false, lat: 35.685, lng: 139.710 },
-        { id: "e3", type: "meal" as const, title: "Dîner Ramen à Ichiran", startTime: "19:00", durationMinutes: 75, locationName: "Ichiran Shinjuku Central East Exit", isAiEnriched: true, lat: 35.691, lng: 139.704 },
+        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Shinjuku, Tokyo", isAiEnriched: true, lat: 35.695, lng: 139.700, description: "Arrivée et installation à l\'hôtel." },
+        { id: "e2", type: "visit" as const, title: "Exploration de Shinjuku Gyoen", startTime: "16:30", durationMinutes: 120, locationName: "Shinjuku Gyoen National Garden", isAiEnriched: false, lat: 35.685, lng: 139.710, description: "Première découverte de la ville avec une balade dans ce magnifique parc." },
+        { id: "e3", type: "meal" as const, title: "Dîner Ramen à Ichiran", startTime: "19:00", durationMinutes: 75, locationName: "Ichiran Shinjuku Central East Exit", isAiEnriched: true, lat: 35.691, lng: 139.704, description: "Dégustation de ramens authentiques." },
       ] : [],
   })),
 };
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
+  const [trip, setTrip] = useState(initialTrip);
   const [selectedDay, setSelectedDay] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
-  const dayEvents = mockTrip.days[selectedDay]?.events || [];
-  const dayDate = mockTrip.days[selectedDay]?.date;
+  const dayEvents = trip.days[selectedDay]?.events || [];
+  const dayDate = trip.days[selectedDay]?.date;
+
+  const handleGenerateItinerary = async () => {
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    const mockTravelers = { adults: 2, children: [], hasPets: false };
+    const mockPreferences = { pace: 50, budget: 50, interests: ['culture', 'gastronomy'], accessibility: [], dietary: [], alreadyVisited: [], mustSee: [] };
+
+    try {
+        const input: GenerateItineraryInput = {
+            tripId: trip.id,
+            title: trip.title,
+            destinations: trip.destinations,
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+            travelers: mockTravelers,
+            preferences: mockPreferences,
+        };
+
+        const generatedItinerary = await generateTripItinerary(input);
+
+        setTrip(currentTrip => {
+            const newDays = currentTrip.days.map(day => {
+                const dayString = format(day.date, 'yyyy-MM-dd');
+                const generatedDay = generatedItinerary.find(genDay => genDay.date === dayString);
+
+                if (generatedDay) {
+                    return {
+                        ...day,
+                        events: generatedDay.events.map((event, index) => ({
+                            ...event,
+                            id: `gen-event-${day.id}-${index}`,
+                            isAiEnriched: false, 
+                        })),
+                    };
+                }
+                return day;
+            });
+
+            return { ...currentTrip, days: newDays };
+        });
+
+    } catch (error) {
+        console.error("Failed to generate itinerary:", error);
+        setGenerationError("La génération de l'itinéraire a échoué. Veuillez réessayer.");
+    } finally {
+        setIsGenerating(false);
+    }
+  };
+
 
   return (
     <div className="flex flex-col h-screen bg-bg-dark">
@@ -57,22 +111,34 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold font-headline">{mockTrip.title}</h1>
+              <h1 className="text-2xl font-bold font-headline">{trip.title}</h1>
               <p className="text-sm text-slate-400 flex items-center gap-2">
                 <MapPin className="h-3 w-3" />
-                {mockTrip.destinations.join(' → ')}
+                {trip.destinations.join(' → ')}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline">
-              <Share2 className="mr-2 h-4 w-4" />
-              Partager
-            </Button>
-            <Button>
-              <Bot className="mr-2 h-4 w-4" />
-              Générer l'itinéraire
-            </Button>
+          <div className="flex flex-col items-end">
+            <div className="flex items-center gap-2">
+                <Button variant="outline">
+                <Share2 className="mr-2 h-4 w-4" />
+                Partager
+                </Button>
+                <Button onClick={handleGenerateItinerary} disabled={isGenerating}>
+                {isGenerating ? (
+                    <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Génération en cours...
+                    </>
+                ) : (
+                    <>
+                    <Bot className="mr-2 h-4 w-4" />
+                    Générer l'itinéraire
+                    </>
+                )}
+                </Button>
+            </div>
+            {generationError && <p className="text-sm text-destructive mt-2">{generationError}</p>}
           </div>
         </header>
 
@@ -93,7 +159,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             <div className="w-full border-b border-slate-800">
               <div className="container mx-auto px-6">
               <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
-                {mockTrip.days.map((day, index) => (
+                {trip.days.map((day, index) => (
                   <Button
                     key={day.id}
                     variant={selectedDay === index ? 'secondary' : 'ghost'}
@@ -121,7 +187,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                            dayEvents.map(event => <EventCard key={event.id} event={event} />)
                         ) : (
                             <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
-                                <p className="text-slate-400">Aucun événement pour ce jour.</p>
+                                <p className="text-slate-400">Aucun événement pour ce jour. Cliquez sur "Générer l'itinéraire" pour commencer.</p>
                                 <Button className="mt-4">Ajouter un événement</Button>
                             </Card>
                         )}
@@ -135,7 +201,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </TabsContent>
 
           <TabsContent value="info" className="flex-grow overflow-y-auto bg-slate-900/50">
-            <TripInfo destinations={mockTrip.destinations} />
+            <TripInfo destinations={trip.destinations} />
           </TabsContent>
         </Tabs>
       </div>

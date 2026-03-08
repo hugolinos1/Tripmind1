@@ -42,6 +42,8 @@ const ItineraryEventSchema = z.object({
   durationMinutes: z.number().int().positive().describe('Duration of the event in minutes.'),
   locationName: z.string().describe('Name of the location.'),
   locationAddress: z.string().describe('Full address of the location.'),
+  lat: z.number().describe('Latitude of the event location.'),
+  lng: z.number().describe('Longitude of the event location.'),
 });
 
 const ItineraryDaySchema = z.object({
@@ -67,12 +69,18 @@ const generateItineraryPrompt = ai.definePrompt({
   name: 'generateItineraryPrompt',
   input: { schema: GenerateItineraryInputSchema },
   output: { schema: GenerateItineraryOutputSchema },
-  model: ai.model('googleai/gemini-2.5-flash'), // Explicitly use the configured model
   config: {
     temperature: 0.7,
-    maxOutputTokens: 2000,
   },
-  system: `Tu es un expert en planification de voyage. Génère un itinéraire détaillé jour par jour. Formate la réponse en un tableau JSON valide. Chaque élément du tableau représente un jour et contient une clé "date" (format YYYY-MM-DD) et une clé "events", qui est une liste d'événements. Chaque événement doit inclure : un "type" (choisi parmi "visit", "meal", "transport", "accommodation", "activity"), un "title", une "description" détaillée, un "startTime" (format HH:mm), une "durationMinutes" (en minutes), un "locationName" et un "locationAddress" complet. La liste des événements doit être ordonnée chronologiquement pour la journée.`,
+  system: `Tu es un planificateur de voyage expert et un assistant IA. Ta mission est de générer un itinéraire de voyage détaillé, jour par jour, en te basant sur les préférences fournies. La réponse doit être un objet JSON valide qui adhère strictement au schéma de sortie.
+
+Instructions Clés :
+1.  **Itinéraire Chronologique :** Les événements de chaque journée doivent être dans un ordre logique et chronologique.
+2.  **Pertinence :** Assure-toi que les activités et lieux sont pertinents par rapport aux destinations et aux intérêts de l'utilisateur.
+3.  **Détails Complets :** Pour chaque événement, fournis toutes les informations requises : type, titre, description, heure de début, durée, nom du lieu, adresse complète, et coordonnées géographiques (latitude et longitude). Si une adresse exacte n'est pas pertinente (par ex. "Balade dans le quartier"), donne une adresse centrale ou une description claire de la zone, avec des coordonnées approximatives.
+4.  **Réalisme :** Crée un itinéraire réaliste. Prends en compte les temps de trajet entre les lieux, les heures d'ouverture probables et un rythme de voyage équilibré en fonction de la préférence "pace".
+5.  **Formatage Strict :** La sortie doit être uniquement l'objet JSON, sans texte d'introduction, de conclusion ou de commentaires.
+6.  **Gestion des Dates :** Calcule les dates pour chaque jour de l'itinéraire en te basant sur les 'startDate' et 'endDate' fournies.`,
   prompt: `Génère un itinéraire pour un voyage intitulé "{{title}}", à destination de {{destinations}} du {{startDate}} au {{endDate}}.
 Détails des voyageurs:
   - Adultes: {{travelers.adults}}
