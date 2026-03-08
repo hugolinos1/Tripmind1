@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../db/dev.db"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  name         String?
+  avatar       String?
+  language     String    @default("fr")
+  currency     String    @default("EUR")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions Session[]
+  trips    Trip[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Trip {
+  id           String    @id @default(cuid())
+  userId       String
+  title        String
+  destinations String // JSON array: ["Paris", "Lyon"]
+  startDate    DateTime
+  endDate      DateTime
+  travelers    String // JSON: {adults: number, children: string[], hasPets: boolean}
+  preferences  String // JSON: see structure below
+  status       String    @default("draft")
+  shareToken   String?   @unique
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days Day[]
+
+  @@map("trips")
+}
+
+model Day {
+  id        String   @id @default(cuid())
+  tripId    String
+  date      DateTime
+  orderIndex Int
+  notes     String?
+
+  // Lieu de départ
+  startLocationName    String?
+  startLocationAddress String?
+  startLat             Float?
+  startLng             Float?
+
+  // Lieu d'arrivée
+  endLocationName    String?
+  endLocationAddress String?
+  endLat             Float?
+  endLng             Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip   Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  events Event[]
+
+  @@index([tripId])
+  @@index([tripId, orderIndex])
+  @@map("days")
+}
+
+model Event {
+  id              String   @id @default(cuid())
+  dayId           String
+  type            String // visit, meal, transport, accommodation, activity
+  title           String
+  description     String?
+  startTime       String? // Format HH:mm
+  durationMinutes Int?
+
+  // Localisation
+  locationName    String?
+  locationAddress String?
+  lat             Float?
+  lng             Float?
+
+  // Médias et infos
+  photos          String   @default("[]") // JSON array of URLs
+  practicalInfo   String   // JSON: {openingHours, priceRange, tips[], bestTimeToVisit}
+  estimatedBudget Float?
+  isAiEnriched    Boolean  @default(false)
+  sourceUrl       String?
+  attachments     String   @default("[]") // JSON array
+  orderIndex      Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  day         Day          @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  enrichments Enrichment[]
+
+  @@index([dayId])
+  @@index([dayId, orderIndex])
+  @@map("events")
+}
+
+model Enrichment {
+  id          String   @id @default(cuid())
+  eventId     String
+  rawResponse String // JSON: réponse complète de l'IA
+  tokensUsed  Int?
+  createdAt   DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("enrichments")
+}

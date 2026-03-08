@@ -1,3 +1,40 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "trip-japan",
+      "description": "A temple in Japan",
+      "imageUrl": "https://picsum.photos/seed/trip-japan/800/400",
+      "imageHint": "japan temple"
+    },
+    {
+      "id": "trip-italy",
+      "description": "Italian coast",
+      "imageUrl": "https://picsum.photos/seed/trip-italy/800/400",
+      "imageHint": "italy coast"
+    },
+    {
+      "id": "trip-patagonia",
+      "description": "Patagonia mountains",
+      "imageUrl": "https://picsum.photos/seed/trip-patagonia/800/400",
+      "imageHint": "patagonia mountains"
+    },
+    {
+      "id": "event-louvre",
+      "description": "Louvre Museum",
+      "imageUrl": "https://picsum.photos/seed/event-louvre/400/300",
+      "imageHint": "museum art"
+    },
+    {
+      "id": "event-eiffel",
+      "description": "Eiffel Tower",
+      "imageUrl": "https://picsum.photos/seed/event-eiffel/400/300",
+      "imageHint": "paris landmark"
+    },
+    {
+      "id": "event-restaurant",
+      "description": "A fancy restaurant",
+      "imageUrl": "https://picsum.photos/seed/event-restaurant/400/300",
+      "imageHint": "restaurant food"
+    }
+  ]
 }
