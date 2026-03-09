@@ -27,8 +27,9 @@ NEXT_PUBLIC_FIREBASE_APP_ID="..."
 NEXT_PUBLIC_FIREBASE_API_KEY="..."
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="..."
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="..."
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="..."
 
+# Optional: For Google Analytics for Firebase. Only add this if you have enabled Analytics.
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="..."
 ```
 
 ### Deployment (GitHub Actions)
@@ -37,4 +38,4 @@ For deployment, you must set these environment variables as **Repository Secrets
 
 1.  Go to your repository on GitHub.
 2.  Navigate to `Settings` > `Secrets and variables` > `Actions`.
-3.  Click `New repository secret` for each variable listed above and provide its value.
+3.  Click `New repository secret` for each variable listed in `.env` and provide its value.
