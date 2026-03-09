@@ -13,6 +13,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CreditCard, LogOut, Settings, User } from 'lucide-react';
 import { Logo } from '../logo';
+import { useAuth, useUser } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { Skeleton } from '../ui/skeleton';
 
 export function AppHeader() {
   return (
@@ -26,22 +29,41 @@ export function AppHeader() {
 }
 
 function UserNav() {
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+
+  const handleSignOut = () => {
+    signOut(auth);
+  };
+
+  if (isUserLoading) {
+    return <Skeleton className="h-9 w-9 rounded-full" />;
+  }
+
+  if (!user) {
+    return (
+      <Button asChild>
+        <Link href="/login">Se connecter</Link>
+      </Button>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src="https://picsum.photos/seed/avatar/100/100" alt="Avatar" />
-            <AvatarFallback>U</AvatarFallback>
+            <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} alt={user.displayName || 'Avatar'} />
+            <AvatarFallback>{user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">Utilisateur</p>
+            <p className="text-sm font-medium leading-none">{user.displayName || 'Utilisateur'}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              utilisateur@example.com
+              {user.email}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -59,11 +81,9 @@ function UserNav() {
           <span>Paramètres</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/">
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Se déconnecter</span>
-          </Link>
+        <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Se déconnecter</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

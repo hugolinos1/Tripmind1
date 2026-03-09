@@ -1,45 +1,40 @@
+'use client';
+
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle } from "lucide-react";
 import { AppHeader } from "@/components/app/app-header";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-
-// Mock data for trips
-const mockTrips = [
-  {
-    id: "1",
-    title: "Aventure au Japon",
-    destinations: ["Tokyo", "Kyoto"],
-    startDate: "2024-08-15",
-    endDate: "2024-08-29",
-    status: "active",
-    image: PlaceHolderImages.find(p => p.id === 'trip-japan') || { imageUrl: 'https://picsum.photos/seed/1/800/400', imageHint: 'japan temple' },
-  },
-  {
-    id: "2",
-    title: "Escapade Italienne",
-    destinations: ["Rome", "Florence", "Venise"],
-    startDate: "2024-09-10",
-    endDate: "2024-09-20",
-    status: "draft",
-    image: PlaceHolderImages.find(p => p.id === 'trip-italy') || { imageUrl: 'https://picsum.photos/seed/2/800/400', imageHint: 'italy coast' },
-  },
-  {
-    id: "3",
-    title: "Découverte de la Patagonie",
-    destinations: ["El Calafate", "Ushuaia"],
-    startDate: "2025-01-20",
-    endDate: "2025-02-05",
-    status: "active",
-    image: PlaceHolderImages.find(p => p.id === 'trip-patagonia') || { imageUrl: 'https://picsum.photos/seed/3/800/400', imageHint: 'patagonia mountains' },
-  },
-];
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function DashboardPage() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const router = useRouter();
+
+  useEffect(() => {
+    // If auth is done loading and there's no user, redirect to login.
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  const tripsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return collection(firestore, 'users', user.uid, 'trips');
+  }, [firestore, user]);
+
+  const { data: trips, isLoading: isTripsLoading } = useCollection(tripsQuery);
+
+  const isLoading = isUserLoading || isTripsLoading;
+
   return (
     <div className="flex flex-col min-h-screen bg-bg-dark">
       <AppHeader />
@@ -55,29 +50,47 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {mockTrips.map((trip) => (
+          {isLoading && Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-72 w-full rounded-lg" />)}
+          
+          {!isLoading && trips && trips.map((trip) => (
             <TripCard key={trip.id} trip={trip} />
           ))}
+
+          {!isLoading && (!trips || trips.length === 0) && (
+            <Card className="col-span-full flex flex-col items-center justify-center p-12 border-dashed border-slate-700 bg-slate-800/20">
+              <h2 className="text-xl font-semibold mb-2">Commencez votre première aventure !</h2>
+              <p className="text-slate-400 mb-6">Vous n'avez pas encore de voyage. Créez-en un pour commencer à planifier.</p>
+              <Button asChild>
+                <Link href="/new-trip">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Créer un nouveau voyage
+                </Link>
+              </Button>
+            </Card>
+          )}
         </div>
       </main>
     </div>
   );
 }
 
-function TripCard({ trip }: { trip: (typeof mockTrips)[0] }) {
-  const startDate = new Date(trip.startDate);
-  const endDate = new Date(trip.endDate);
+function TripCard({ trip }: { trip: any }) {
+  // Firestore Timestamps can be converted to JS Date objects.
+  const startDate = trip.startDate?.toDate ? trip.startDate.toDate() : new Date(trip.startDate);
+  const endDate = trip.endDate?.toDate ? trip.endDate.toDate() : new Date(trip.endDate);
+  
+  const image = { imageUrl: `https://picsum.photos/seed/${trip.id}/800/400`, imageHint: 'travel landscape' };
   
   return (
     <Link href={`/trips/${trip.id}`}>
       <Card className="overflow-hidden h-full flex flex-col group border-slate-700/80 bg-slate-900 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
         <CardHeader className="p-0 relative h-48">
           <Image
-            src={trip.image.imageUrl}
+            src={image.imageUrl}
             alt={trip.title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
-            data-ai-hint={trip.image.imageHint}
+            data-ai-hint={image.imageHint}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <CardTitle className="absolute bottom-4 left-4 text-2xl font-headline text-white">
@@ -85,14 +98,20 @@ function TripCard({ trip }: { trip: (typeof mockTrips)[0] }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-grow p-4">
-          <p className="text-sm text-slate-400">{trip.destinations.join(" · ")}</p>
+          <p className="text-sm text-slate-400">{Array.isArray(trip.destinations) ? trip.destinations.join(" · ") : ''}</p>
         </CardContent>
         <CardFooter className="p-4 bg-slate-800/30">
           <div className="text-sm text-slate-300">
-            {format(startDate, 'd MMM', { locale: fr })} - {format(endDate, 'd MMM yyyy', { locale: fr })}
+            {isValidDate(startDate) && isValidDate(endDate) ? 
+             `${format(startDate, 'd MMM', { locale: fr })} - ${format(endDate, 'd MMM yyyy', { locale: fr })}`
+             : 'Dates non définies'}
           </div>
         </CardFooter>
       </Card>
     </Link>
   );
+}
+
+function isValidDate(d: any) {
+  return d instanceof Date && !isNaN(d.getTime());
 }
