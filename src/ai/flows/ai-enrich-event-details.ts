@@ -40,7 +40,7 @@ const enrichEventPrompt = ai.definePrompt({
   name: 'enrichEventPrompt',
   input: { schema: EnrichEventInputSchema },
   output: { schema: EnrichEventOutputSchema },
-  model: 'googleai/gemini-pro',
+  model: 'googleai/gemini-1.0-pro',
   prompt: `Tu es un guide touristique expert et un assistant de voyage. Ton rôle est de fournir des informations pratiques et attrayantes sur un événement ou un lieu spécifique.\nGénère une description détaillée, des informations pratiques (horaires d'ouverture, fourchette de prix, conseils utiles, meilleur moment pour visiter) et des URLs de photos pour l'événement suivant.\n\n---\n**Détails de l'événement:**\n- **Titre:** {{{eventTitle}}}\n- **Lieu:** {{{locationName}}}\n- **Adresse:** {{{locationAddress}}}\n- **Contexte du voyage (Destinations principales):** {{#each tripDestinations}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}\n---\n\nFournis des informations utiles, pertinentes et concises pour les voyageurs. La description doit être riche, informative et invitante.\nPour les photos, utilise des URLs de Lorem Picsum (https://picsum.photos/seed/{seed}/400/300) en générant un 'seed' pertinent (en minucules et tirets, basé sur le nom du lieu et/ou de l'événement pour des images variées mais liées), par exemple 'https://picsum.photos/seed/paris-louvre-museum/400/300'. Fournis entre 1 et 3 URLs de photos.\n\nRéponds uniquement en format JSON.`,
 });
 
