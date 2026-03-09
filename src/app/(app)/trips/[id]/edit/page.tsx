@@ -24,10 +24,12 @@ import Link from 'next/link';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ImagePicker } from '@/components/app/image-picker';
 
 const formSchema = z.object({
   title: z.string().min(3, { message: 'Le titre doit contenir au moins 3 caractères.' }),
   destinations: z.string().min(3, { message: 'Veuillez entrer au moins une destination.' }),
+  imageUrl: z.string().optional(),
   dateRange: z.object({
     from: z.date({ required_error: "Date de début requise." }),
     to: z.date().optional(),
@@ -70,6 +72,7 @@ export default function EditTripPage() {
     defaultValues: {
       title: '',
       destinations: '',
+      imageUrl: '',
       adults: 1,
       childrenAges: '',
       hasPets: false,
@@ -96,6 +99,7 @@ export default function EditTripPage() {
         form.reset({
             title: tripData.title,
             destinations: Array.isArray(tripData.destinations) ? tripData.destinations.join(', ') : '',
+            imageUrl: tripData.imageUrl || '',
             dateRange: {
                 from: tripData.startDate?.toDate(),
                 to: tripData.endDate?.toDate(),
@@ -136,6 +140,7 @@ export default function EditTripPage() {
       const tripDataToUpdate = {
         title: values.title,
         destinations: values.destinations.split(',').map(d => d.trim()),
+        imageUrl: values.imageUrl,
         startDate: values.dateRange.from,
         endDate: values.dateRange.to || values.dateRange.from,
         travelers: JSON.stringify({ 
@@ -185,6 +190,7 @@ export default function EditTripPage() {
                           <Skeleton className="h-4 w-3/4" />
                       </CardHeader>
                       <CardContent className="space-y-6">
+                          <Skeleton className="h-48 w-full" />
                           <Skeleton className="h-10 w-full" />
                           <Skeleton className="h-10 w-full" />
                           <Skeleton className="h-24 w-full" />
@@ -219,6 +225,23 @@ export default function EditTripPage() {
             <CardContent>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <FormField
+                            control={form.control}
+                            name="imageUrl"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Image du voyage</FormLabel>
+                                    <FormControl>
+                                        <ImagePicker
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            searchDefaultValue={form.watch('title')}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <FormField
                               control={form.control}

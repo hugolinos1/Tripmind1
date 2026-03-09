@@ -137,6 +137,11 @@
           "description": "Current status of the trip (e.g., draft, active, completed, archived).",
           "format": "enum"
         },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL or data URI of the trip's illustration image. Can be null.",
+          "format": "uri"
+        },
         "shareToken": {
           "type": "string",
           "description": "Unique token for sharing the trip publicly. Can be null."

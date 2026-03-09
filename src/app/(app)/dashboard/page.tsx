@@ -38,7 +38,8 @@ function TripCard({ trip }: { trip: any }) {
   const startDate = trip.startDate?.toDate ? trip.startDate.toDate() : new Date(trip.startDate);
   const endDate = trip.endDate?.toDate ? trip.endDate.toDate() : new Date(trip.endDate);
   
-  const image = { imageUrl: `https://picsum.photos/seed/${trip.id}/800/400`, imageHint: 'travel landscape' };
+  const imageUrl = trip.imageUrl || `https://picsum.photos/seed/${trip.id}/800/400`;
+  const imageHint = trip.imageUrl ? trip.title : 'travel landscape';
 
   const handleDelete = () => {
       if (!user || !firestore) {
@@ -62,11 +63,11 @@ function TripCard({ trip }: { trip: any }) {
           <Link href={`/trips/${trip.id}`} className="flex-grow flex flex-col">
               <CardHeader className="p-0 relative h-48">
                   <Image
-                      src={image.imageUrl}
+                      src={imageUrl}
                       alt={trip.title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      data-ai-hint={image.imageHint}
+                      data-ai-hint={imageHint}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <CardTitle className="absolute bottom-4 left-4 text-2xl font-headline text-white">
