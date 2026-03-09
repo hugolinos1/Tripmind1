@@ -42,7 +42,7 @@ export interface Event {
 interface EventCardProps {
     event: Event;
     onEnrich: (eventId: string) => Promise<void>;
-    onAddAttachment: (eventId: string, attachment: Attachment) => void;
+    onAddAttachment: (attachment: Attachment) => void;
 }
 
 const eventTypeConfig = {
@@ -84,7 +84,7 @@ const EventCard = ({ event, onEnrich, onAddAttachment }: EventCardProps) => {
               category: 'other', // default category
               url: URL.createObjectURL(file),
           };
-          onAddAttachment(event.id, newAttachment);
+          onAddAttachment(newAttachment);
       }
       // Reset file input to allow selecting the same file again
       if (e.target) {

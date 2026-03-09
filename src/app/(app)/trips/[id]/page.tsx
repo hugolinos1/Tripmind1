@@ -18,94 +18,63 @@ import { generateTripItinerary } from '@/ai/flows/ai-generate-trip-itinerary';
 import type { GenerateItineraryInput } from '@/ai/types';
 import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, collection, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { v4 as uuidv4 } from 'uuid';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const MapView = dynamic(() => import('../../../../components/app/map-view'), {
   ssr: false,
   loading: () => <div className="bg-slate-800 animate-pulse w-full h-full" />,
 });
 
-type Day = {
+// Matches the Day entity in Firestore
+interface Day {
     id: string;
-    date: Date;
+    date: {
+        seconds: number;
+        nanoseconds: number;
+    }; // Firestore Timestamp
     orderIndex: number;
-    events: EventType[];
 }
-
-const initialTrip = {
-  id: "1",
-  title: "Aventure au Japon",
-  destinations: ["Tokyo", "Kyoto"],
-  startDate: "2024-08-15",
-  endDate: "2024-08-29",
-  days: Array.from({ length: 15 }, (_, i) => ({
-    id: `day-${i + 1}`,
-    date: new Date(new Date("2024-08-15").setDate(new Date("2024-08-15").getDate() + i)),
-    orderIndex: i,
-    events: i === 0 ? [
-        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Hotel Gracery Shinjuku, 1 Chome-19-1 Kabukicho, Shinjuku City, Tokyo 160-8466", isAiEnriched: true, lat: 35.6963, lng: 139.7006, description: "Arrivée et installation à l'hôtel célèbre pour sa tête de Godzilla.", attachments: [{ id: 'attach1', filename: 'Réservation Hotel.pdf', category: 'reservation' as const, url: '#' }] },
-        { id: "e2", type: "visit" as const, title: "Exploration de Shinjuku Gyoen", startTime: "16:30", durationMinutes: 120, locationName: "Shinjuku Gyoen National Garden, 11 Naitomachi, Shinjuku City, Tokyo 160-0014", isAiEnriched: false, lat: 35.6852, lng: 139.711, description: "Première découverte de la ville avec une balade dans ce magnifique parc impérial." },
-        { id: "e3", type: "meal" as const, title: "Dîner Ramen à Ichiran", startTime: "19:00", durationMinutes: 75, locationName: "Ichiran Shinjuku Central East Exit, 3 Chome-34-11 Shinjuku, Shinjuku City, Tokyo 160-0022", isAiEnriched: true, lat: 35.6909, lng: 139.7034, description: "Dégustation de ramens authentiques dans des box individuels pour une expérience immersive." },
-      ] : [],
-  })) as Day[],
-};
-
-const LOCAL_STORAGE_KEY_PREFIX = 'trip_';
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const tripId = params.id as string;
 
-  const tripRef = useMemoFirebase(() => {
-    if (!user || !firestore || !params.id) return null;
-    return doc(firestore, 'users', user.uid, 'trips', params.id as string);
-  }, [firestore, user, params.id]);
-
-  const { data: tripData, isLoading: isTripLoading } = useDoc(tripRef);
-
-  // The 'trip' state now holds both the static data from firestore and the dynamic 'days' array
-  const [trip, setTrip] = useState({ ...initialTrip, id: params.id });
-  const [selectedDay, setSelectedDay] = useState(0);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState<'full' | 'day' | false>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
 
+  // --- Data Fetching from Firestore ---
+  const tripRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid, 'trips', tripId);
+  }, [firestore, user, tripId]);
+
+  const { data: tripData, isLoading: isTripLoading } = useDoc(tripRef);
+
+  const daysQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'users', user.uid, 'trips', tripId, 'days'), orderBy('orderIndex'));
+  }, [firestore, user, tripId]);
+  const { data: days, isLoading: isDaysLoading } = useCollection<Day>(daysQuery);
+
+  const selectedDay = days?.[selectedDayIndex];
+
+  const eventsQuery = useMemoFirebase(() => {
+    if (!user || !firestore || !selectedDay) return null;
+    return query(collection(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events'), orderBy('orderIndex'));
+  }, [firestore, user, tripId, selectedDay]);
+  const { data: events, isLoading: isEventsLoading } = useCollection<EventType>(eventsQuery);
+
+  // Reset selected day if days change
   useEffect(() => {
-    if (tripData) {
-      // Merge fetched data into the local state.
-      // This uses real trip properties but keeps the demo 'days' structure for now if not present in Firestore.
-      const startDate = tripData.startDate?.toDate();
-      const endDate = tripData.endDate?.toDate();
-      
-      let days = trip.days;
-      if (startDate && endDate) {
-          const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-          days = Array.from({ length: diffDays }, (_, i) => {
-                const dayDate = new Date(startDate);
-                dayDate.setDate(startDate.getDate() + i);
-                return {
-                  id: `day-${i + 1}`,
-                  date: dayDate,
-                  orderIndex: i,
-                  events: [],
-                };
-              });
-      }
-
-      setTrip(currentTrip => ({
-          ...currentTrip,
-          ...tripData,
-          days,
-      }));
-    }
-  }, [tripData]);
-
-
-  const dayEvents = trip.days[selectedDay]?.events || [];
-  const dayDate = trip.days[selectedDay]?.date;
+    setSelectedDayIndex(0);
+  }, [days?.length]);
 
   const handleGenerateItinerary = async (dayIndex?: number) => {
     if (!tripData) {
@@ -124,86 +93,101 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     const travelers = JSON.parse(tripData.travelers || '{}');
     const preferences = JSON.parse(tripData.preferences || '{}');
 
-    const isSingleDay = typeof dayIndex === 'number';
     const tripStartDate = tripData.startDate?.toDate();
     const tripEndDate = tripData.endDate?.toDate();
 
     if (!tripStartDate || !tripEndDate) {
         toast({ variant: "destructive", title: "Erreur", description: "Les dates du voyage ne sont pas définies." });
+        setIsGenerating(false);
         return;
     }
-
-    const startDate = isSingleDay ? format(trip.days[dayIndex!].date, 'yyyy-MM-dd') : format(tripStartDate, 'yyyy-MM-dd');
-    const endDate = isSingleDay ? format(trip.days[dayIndex!].date, 'yyyy-MM-dd') : format(tripEndDate, 'yyyy-MM-dd');
 
     try {
         const input: GenerateItineraryInput = {
             tripId: tripData.id,
             title: tripData.title,
             destinations: tripData.destinations,
-            startDate: startDate,
-            endDate: endDate,
+            startDate: format(tripStartDate, 'yyyy-MM-dd'),
+            endDate: format(tripEndDate, 'yyyy-MM-dd'),
             travelers: travelers,
             preferences: preferences,
         };
 
         const generatedItinerary = await generateTripItinerary(input);
+        
+        if (!user || !firestore) throw new Error("Utilisateur ou base de données non disponible.");
+        if (days && days.length > 0) {
+            // This is a simple guard. A more robust solution would involve merging or clearing data.
+            toast({
+                variant: "destructive",
+                title: "Itinéraire existant",
+                description: "Veuillez supprimer ce voyage et en créer un nouveau pour régénérer un itinéraire complet.",
+            });
+            setIsGenerating(false);
+            return;
+        }
 
-        setTrip(currentTrip => {
-            const newDays = [...currentTrip.days];
-            if (isSingleDay && typeof dayIndex === 'number') {
-                 const dayToUpdate = newDays[dayIndex];
-                 const dayString = format(dayToUpdate.date, 'yyyy-MM-dd');
-                 const generatedDay = generatedItinerary.find(genDay => genDay.date === dayString);
+        const batch = writeBatch(firestore);
 
-                 if (generatedDay) {
-                     newDays[dayIndex] = {
-                         ...dayToUpdate,
-                         events: generatedDay.events.map((event, index) => ({
-                             ...event,
-                             id: `gen-event-${dayToUpdate.id}-${index}`,
-                             isAiEnriched: false, 
-                         })),
-                     };
-                 }
-            } else {
-                generatedItinerary.forEach(generatedDay => {
-                    const dayIndexToUpdate = newDays.findIndex(d => format(d.date, 'yyyy-MM-dd') === generatedDay.date);
-                    if (dayIndexToUpdate !== -1) {
-                        const dayToUpdate = newDays[dayIndexToUpdate];
-                        newDays[dayIndexToUpdate] = {
-                            ...dayToUpdate,
-                            events: generatedDay.events.map((event, index) => ({
-                                ...event,
-                                id: `gen-event-${dayToUpdate.id}-${index}`,
-                                isAiEnriched: false,
-                            })),
-                        };
-                    }
-                });
+        for (const [dayIdx, generatedDay] of generatedItinerary.entries()) {
+            const dayId = uuidv4();
+            const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', dayId);
+
+            const dayData = {
+                tripId: tripId,
+                date: new Date(generatedDay.date),
+                orderIndex: dayIdx,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            };
+            batch.set(dayRef, dayData);
+
+            for (const [eventIndex, generatedEvent] of generatedDay.events.entries()) {
+                const eventId = uuidv4();
+                const eventRef = doc(dayRef, 'events', eventId);
+                const eventData = {
+                    dayId: dayId,
+                    type: generatedEvent.type,
+                    title: generatedEvent.title,
+                    description: generatedEvent.description || '',
+                    startTime: generatedEvent.startTime || null,
+                    durationMinutes: generatedEvent.durationMinutes || null,
+                    locationName: generatedEvent.locationName || '',
+                    lat: generatedEvent.lat || null,
+                    lng: generatedEvent.lng || null,
+                    orderIndex: eventIndex,
+                    isAiEnriched: false,
+                    photos: [],
+                    practicalInfo: JSON.stringify({}),
+                    attachments: [],
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                };
+                batch.set(eventRef, eventData);
             }
-            return { ...currentTrip, days: newDays };
-        });
+        }
+        
+        await batch.commit();
+        toast({ title: "Itinéraire sauvegardé !", description: "Votre itinéraire a été généré et sauvegardé avec succès." });
 
     } catch (error) {
-        console.error("Failed to generate itinerary:", error);
+        console.error("Failed to generate and save itinerary:", error);
         const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
         setGenerationError(`La génération a échoué : ${errorMessage}`);
+        toast({ variant: "destructive", title: "Échec de la génération", description: errorMessage });
     } finally {
         setIsGenerating(false);
     }
   };
 
   const handleEnrichEvent = async (eventId: string) => {
-    let eventToEnrich: EventType | undefined;
-    
-    // Find the event across all days
-    for (const day of trip.days) {
-        eventToEnrich = day.events.find(e => e.id === eventId);
-        if (eventToEnrich) break;
+    if (!selectedDay || !events) {
+        toast({ variant: "destructive", title: "Erreur", description: "Aucun jour ou événement sélectionné." });
+        return;
     }
+    const eventToEnrich = events.find(e => e.id === eventId);
 
-    if (!eventToEnrich) {
+    if (!eventToEnrich || !user || !firestore) {
         toast({ variant: "destructive", title: "Erreur", description: "L'événement à enrichir n'a pas été trouvé." });
         return;
     }
@@ -216,24 +200,15 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             type: eventToEnrich.type,
         });
 
-        // Update the trip state with the enriched data
-        setTrip(currentTrip => {
-            const newDays = currentTrip.days.map(day => ({
-                ...day,
-                events: day.events.map(event => {
-                    if (event.id === eventId) {
-                        return {
-                            ...event,
-                            description: enrichedData.description,
-                            practicalInfo: enrichedData.practicalInfo,
-                            isAiEnriched: true,
-                        };
-                    }
-                    return event;
-                }),
-            }));
-            return { ...currentTrip, days: newDays };
+        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
+        
+        updateDocumentNonBlocking(eventRef, {
+            description: enrichedData.description,
+            practicalInfo: JSON.stringify(enrichedData.practicalInfo),
+            isAiEnriched: true,
+            updatedAt: serverTimestamp()
         });
+
         toast({ title: "Succès", description: `L'événement "${eventToEnrich.title}" a été enrichi.` });
     } catch (error: any) {
         console.error("Failed to enrich event:", error);
@@ -242,30 +217,20 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             title: "Échec de l'enrichissement",
             description: error.message || "Une erreur inconnue est survenue.",
         });
-        // Re-throw to be caught by the card's local handler if needed
         throw error;
     }
   };
 
   const handleAddAttachment = (eventId: string, newAttachment: Attachment) => {
-    setTrip(currentTrip => {
-        const newDays = currentTrip.days.map(day => {
-            const eventIndex = day.events.findIndex(e => e.id === eventId);
-            if (eventIndex > -1) {
-                const updatedEvents = [...day.events];
-                const eventToUpdate = { ...updatedEvents[eventIndex] };
-                
-                eventToUpdate.attachments = [...(eventToUpdate.attachments || []), newAttachment];
-                updatedEvents[eventIndex] = eventToUpdate;
+    if (!selectedDay || !events || !user || !firestore) return;
 
-                return { ...day, events: updatedEvents };
-            }
-            return day;
-        });
+    const eventToUpdate = events.find(e => e.id === eventId);
+    if (!eventToUpdate) return;
+    
+    const updatedAttachments = [...(eventToUpdate.attachments || []), newAttachment];
+    const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
 
-        const newTrip = { ...currentTrip, days: newDays };
-        return newTrip;
-    });
+    updateDocumentNonBlocking(eventRef, { attachments: updatedAttachments, updatedAt: serverTimestamp() });
 
     toast({
       title: "Pièce jointe ajoutée",
@@ -273,7 +238,9 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     });
   };
 
-  if (isTripLoading) {
+  const isLoading = isTripLoading || isDaysLoading;
+
+  if (isLoading) {
     return (
         <div className="flex flex-col h-screen bg-bg-dark">
             <AppHeader />
@@ -296,6 +263,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     )
   }
 
+  const dayDate = selectedDay?.date?.seconds ? new Date(selectedDay.date.seconds * 1000) : null;
+  const dayEvents = events || [];
 
   return (
     <div className="flex flex-col h-screen bg-bg-dark">
@@ -312,17 +281,17 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold font-headline">{trip.title}</h1>
+              <h1 className="text-2xl font-bold font-headline">{tripData?.title}</h1>
               <p className="text-sm text-slate-400 flex items-center gap-2">
                 <MapPin className="h-3 w-3" />
-                {Array.isArray(trip.destinations) ? trip.destinations.join(' → ') : ''}
+                {Array.isArray(tripData?.destinations) ? tripData?.destinations.join(' → ') : ''}
               </p>
             </div>
           </div>
           <div className="flex flex-col items-end">
-            <div className="flex items-center gap-2">
+             <div className="flex items-center gap-2">
                 <Button variant="outline" asChild>
-                  <Link href={`/trips/${trip.id}/edit`}>
+                  <Link href={`/trips/${tripId}/edit`}>
                     <Edit className="mr-2 h-4 w-4" />
                     Modifier
                   </Link>
@@ -331,19 +300,21 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                   <Share2 className="mr-2 h-4 w-4" />
                   Partager
                 </Button>
-                <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
-                {isGenerating === 'full' ? (
-                    <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Génération en cours...
-                    </>
-                ) : (
-                    <>
-                    <Bot className="mr-2 h-4 w-4" />
-                    Générer tout l'itinéraire
-                    </>
+                {(!days || days.length === 0) && (
+                  <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
+                    {isGenerating === 'full' ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Génération en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="mr-2 h-4 w-4" />
+                        Générer tout l'itinéraire
+                      </>
+                    )}
+                  </Button>
                 )}
-                </Button>
             </div>
             {generationError && <p className="text-sm text-destructive mt-2">{generationError}</p>}
           </div>
@@ -362,81 +333,96 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </div>
 
           <TabsContent value="itinerary" className="flex-grow flex flex-col overflow-hidden bg-slate-900/50">
-            {/* Day Selector */}
-            <div className="w-full border-b border-slate-800">
-              <div className="container mx-auto px-6">
-              <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
-                {trip.days.map((day, index) => (
-                  <Button
-                    key={day.id}
-                    variant={selectedDay === index ? 'secondary' : 'ghost'}
-                    className={`flex-shrink-0 ${selectedDay === index ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-                    onClick={() => setSelectedDay(index)}
-                  >
-                    Jour {day.orderIndex + 1}
-                    <span className="ml-2 text-xs opacity-70">
-                      {format(day.date, 'd MMM', { locale: fr })}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-              </div>
-            </div>
-            
-            <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 overflow-hidden">
-              <div className="flex flex-col bg-bg-dark lg:overflow-y-auto">
-                <div className="p-6">
-                    <h2 className="text-xl font-bold mb-4 font-headline capitalize">
-                        {dayDate ? format(dayDate, 'EEEE d MMMM', { locale: fr }) : ''}
-                    </h2>
-                    <div className="space-y-4">
-                        {dayEvents.length > 0 ? (
-                           dayEvents.map((event, index) => (
-                             <React.Fragment key={event.id}>
-                                <EventCard event={event} onEnrich={handleEnrichEvent} onAddAttachment={handleAddAttachment} />
-                                {index < dayEvents.length - 1 && (
-                                    <TransportSuggestionCard 
-                                        startEvent={event}
-                                        endEvent={dayEvents[index + 1]}
-                                    />
-                                )}
-                             </React.Fragment>
-                           ))
-                        ) : (
-                            <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
-                                <p className="text-slate-400">Aucun événement pour ce jour.</p>
-                                <div className="mt-4 flex justify-center items-center gap-4">
-                                  <Button onClick={() => handleGenerateItinerary(selectedDay)} disabled={isGenerating !== false}>
-                                    {isGenerating === 'day' ? (
-                                        <>
-                                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                            Génération...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Bot className="mr-2 h-4 w-4" />
-                                            Générer la journée
-                                        </>
-                                    )}
-                                  </Button>
-                                  <Button variant="outline">
-                                      <PlusCircle className="mr-2 h-4 w-4" />
-                                      Ajouter manuellement
-                                  </Button>
-                                </div>
-                            </Card>
-                        )}
-                    </div>
+            {days && days.length > 0 ? (
+              <>
+                {/* Day Selector */}
+                <div className="w-full border-b border-slate-800">
+                  <div className="container mx-auto px-6">
+                  <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
+                    {days.map((day, index) => {
+                      const date = day.date?.seconds ? new Date(day.date.seconds * 1000) : null;
+                      return (
+                        <Button
+                          key={day.id}
+                          variant={selectedDayIndex === index ? 'secondary' : 'ghost'}
+                          className={`flex-shrink-0 ${selectedDayIndex === index ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                          onClick={() => setSelectedDayIndex(index)}
+                        >
+                          Jour {day.orderIndex + 1}
+                          {date && (
+                            <span className="ml-2 text-xs opacity-70">
+                              {format(date, 'd MMM', { locale: fr })}
+                            </span>
+                          )}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  </div>
                 </div>
-              </div>
-              <div className="bg-bg-dark h-full min-h-[300px] lg:min-h-0">
-                <MapView events={dayEvents} />
-              </div>
-            </div>
+                
+                <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 overflow-hidden">
+                  <div className="flex flex-col bg-bg-dark lg:overflow-y-auto">
+                    <div className="p-6">
+                        <h2 className="text-xl font-bold mb-4 font-headline capitalize">
+                            {dayDate ? format(dayDate, 'EEEE d MMMM', { locale: fr }) : ''}
+                        </h2>
+                        <div className="space-y-4">
+                            {isEventsLoading ? (
+                                <>
+                                    <Skeleton className="h-24 w-full" />
+                                    <Skeleton className="h-24 w-full" />
+                                </>
+                            ) : dayEvents.length > 0 ? (
+                               dayEvents.map((event, index) => (
+                                 <React.Fragment key={event.id}>
+                                    <EventCard event={event} onEnrich={handleEnrichEvent} onAddAttachment={(att) => handleAddAttachment(event.id, att)} />
+                                    {index < dayEvents.length - 1 && (
+                                        <TransportSuggestionCard 
+                                            startEvent={event}
+                                            endEvent={dayEvents[index + 1]}
+                                        />
+                                    )}
+                                 </React.Fragment>
+                               ))
+                            ) : (
+                                <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
+                                    <p className="text-slate-400">Aucun événement pour ce jour.</p>
+                                </Card>
+                            )}
+                        </div>
+                    </div>
+                  </div>
+                  <div className="bg-bg-dark h-full min-h-[300px] lg:min-h-0">
+                    <MapView events={dayEvents} />
+                  </div>
+                </div>
+              </>
+            ) : (
+                <div className="flex-grow flex items-center justify-center">
+                     <Card className="col-span-full flex flex-col items-center justify-center p-12 border-dashed border-slate-700 bg-slate-800/20">
+                        <h2 className="text-xl font-semibold mb-2">Prêt à planifier ?</h2>
+                        <p className="text-slate-400 mb-6">Générez un itinéraire pour commencer.</p>
+                        <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
+                            {isGenerating === 'full' ? (
+                                <>
+                                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                Génération en cours...
+                                </>
+                            ) : (
+                                <>
+                                <Bot className="mr-2 h-4 w-4" />
+                                Générer tout l'itinéraire
+                                </>
+                            )}
+                        </Button>
+                     </Card>
+                </div>
+            )}
           </TabsContent>
 
           <TabsContent value="info" className="flex-grow overflow-y-auto bg-slate-900/50">
-            <TripInfo destinations={Array.isArray(trip.destinations) ? trip.destinations : []} />
+            <TripInfo destinations={Array.isArray(tripData?.destinations) ? tripData.destinations : []} />
           </TabsContent>
         </Tabs>
       </div>
