@@ -24,7 +24,8 @@ import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { generateTripItinerary } from '@/ai/flows/ai-generate-trip-itinerary';
-import type { GenerateItineraryInput } from '@/ai/types';
+import type { GenerateItineraryInput, CompleteDayItineraryInput } from '@/ai/types';
+import { completeDayItinerary } from '@/ai/flows/ai-complete-day-itinerary';
 import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
 import { geocodeLocation } from '@/ai/flows/ai-geocode-location';
 import { useToast } from '@/hooks/use-toast';
@@ -75,7 +76,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const tripId = params.id as string;
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const [isGenerating, setIsGenerating] = useState<'full' | 'day' | false>(false);
+  const [isGenerating, setIsGenerating] = useState<'full' | 'day' | 'completing' | false>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [startLocation, setStartLocation] = useState('');
@@ -139,10 +140,21 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     
     const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
 
+    const updateData: { [key: string]: any } = {};
     if (field === 'start') {
-        updateDocumentNonBlocking(dayRef, { startLocationName: value, startLat: null, startLng: null });
+        updateData.startLocationName = value;
+        updateData.startLat = null;
+        updateData.startLng = null;
     } else { // field === 'end'
-        updateDocumentNonBlocking(dayRef, { endLocationName: value, endLat: null, endLng: null });
+        updateData.endLocationName = value;
+        updateData.endLat = null;
+        updateData.endLng = null;
+    }
+
+    updateDocumentNonBlocking(dayRef, updateData);
+
+    // If updating the end location, also update the start location of the next day
+    if (field === 'end') {
         const nextDay = days?.[selectedDayIndex + 1];
         if (nextDay) {
             const nextDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', nextDay.id);
@@ -360,6 +372,94 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
         setGenerationError(`La génération a échoué : ${errorMessage}`);
         toast({ variant: "destructive", title: "Échec de la génération", description: errorMessage });
+    } finally {
+        setIsGenerating(false);
+    }
+  };
+
+  const handleCompleteDayWithAI = async () => {
+    if (!tripData || !selectedDay || !events || !user || !firestore) {
+        toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: "Données requises manquantes pour compléter la journée.",
+        });
+        return;
+    }
+
+    setIsGenerating('completing');
+    setGenerationError(null);
+
+    const dayDate = selectedDay.date?.toDate ? selectedDay.date.toDate() : new Date(selectedDay.date.seconds * 1000);
+
+    try {
+        const preferences = JSON.parse(tripData.preferences || '{}');
+        const existingEventsForAI = events.map(e => ({
+            id: e.id,
+            title: e.title,
+            type: e.type,
+            startTime: e.startTime,
+            locationName: e.locationName,
+        }));
+
+        const input: CompleteDayItineraryInput = {
+            date: format(dayDate, 'yyyy-MM-dd'),
+            location: tripData.destinations[0] || '', // Use first destination as primary location
+            startLocationName: selectedDay.startLocationName,
+            endLocationName: selectedDay.endLocationName,
+            existingEvents: existingEventsForAI,
+            preferences: preferences,
+        };
+
+        const result = await completeDayItinerary(input);
+        const { events: aiGeneratedPlan } = result;
+
+        const batch = writeBatch(firestore);
+        const eventsCollectionRef = collection(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events');
+
+        for (const [index, eventFromAI] of aiGeneratedPlan.entries()) {
+            if (eventFromAI.id) {
+                // This is an existing event. Find its ref and update its orderIndex.
+                const eventRef = doc(eventsCollectionRef, eventFromAI.id);
+                batch.update(eventRef, { orderIndex: index, updatedAt: serverTimestamp() });
+            } else {
+                // This is a new event. Create it with the correct orderIndex.
+                const newEventId = uuidv4();
+                const newEventRef = doc(eventsCollectionRef, newEventId);
+                const newEventData = {
+                    dayId: selectedDay.id,
+                    type: eventFromAI.type,
+                    title: eventFromAI.title,
+                    description: eventFromAI.description || '',
+                    startTime: eventFromAI.startTime || null,
+                    durationMinutes: eventFromAI.durationMinutes || null,
+                    locationName: eventFromAI.locationName || '',
+                    lat: eventFromAI.lat || null,
+                    lng: eventFromAI.lng || null,
+                    orderIndex: index,
+                    isAiEnriched: false,
+                    photos: [],
+                    practicalInfo: JSON.stringify({}),
+                    attachments: [],
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                };
+                batch.set(newEventRef, newEventData);
+            }
+        }
+
+        await batch.commit();
+
+        toast({
+            title: "Journée complétée !",
+            description: "L'itinéraire a été mis à jour avec de nouvelles suggestions."
+        });
+
+    } catch (error) {
+        console.error("Failed to complete day with AI:", error);
+        const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
+        setGenerationError(`La complétion a échoué : ${errorMessage}`);
+        toast({ variant: "destructive", title: "Échec de la complétion", description: errorMessage });
     } finally {
         setIsGenerating(false);
     }
@@ -633,9 +733,24 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 overflow-hidden">
                   <div className="flex flex-col bg-bg-dark lg:overflow-y-auto">
                     <div className="p-6">
-                        <h2 className="text-xl font-bold mb-4 font-headline capitalize">
-                            {dayDate ? format(dayDate, 'EEEE d MMMM', { locale: fr }) : ''}
-                        </h2>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold font-headline capitalize">
+                                {dayDate ? format(dayDate, 'EEEE d MMMM', { locale: fr }) : ''}
+                            </h2>
+                            <Button onClick={() => handleCompleteDayWithAI()} disabled={isGenerating !== false} size="sm">
+                                {isGenerating === 'completing' ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    En cours...
+                                </>
+                                ) : (
+                                <>
+                                    <Bot className="mr-2 h-4 w-4" />
+                                    Compléter la journée
+                                </>
+                                )}
+                            </Button>
+                        </div>
                         
                         <Card className="mb-6 bg-slate-800/50 border-slate-700/50">
                             <CardContent className="p-4 space-y-4">

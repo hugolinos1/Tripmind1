@@ -105,3 +105,37 @@ export const GeocodeOutputSchema = z.object({
   lng: z.number().describe("The longitude of the location."),
 });
 export type GeocodeOutput = z.infer<typeof GeocodeOutputSchema>;
+
+// From ai-complete-day-itinerary.ts
+const CompletedEventSchema = z.object({
+    id: z.string().optional(),
+    type: z.enum(['visit', 'meal', 'transport', 'accommodation', 'activity']),
+    title: z.string(),
+    description: z.string().optional(),
+    startTime: z.string().optional(), // "HH:mm"
+    durationMinutes: z.number().optional(),
+    locationName: z.string().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+});
+
+export const CompleteDayItineraryInputSchema = z.object({
+    date: z.string(),
+    location: z.string(),
+    startLocationName: z.string().optional(),
+    endLocationName: z.string().optional(),
+    existingEvents: z.array(z.object({
+        id: z.string(),
+        title: z.string(),
+        type: z.string(),
+        startTime: z.string().optional().nullable(),
+        locationName: z.string().optional().nullable(),
+    })),
+    preferences: z.any(),
+});
+export type CompleteDayItineraryInput = z.infer<typeof CompleteDayItineraryInputSchema>;
+
+export const CompleteDayItineraryOutputSchema = z.object({
+    events: z.array(CompletedEventSchema)
+});
+export type CompleteDayItineraryOutput = z.infer<typeof CompleteDayItineraryOutputSchema>;
