@@ -34,6 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
+import { cn } from '@/lib/utils';
 
 const MapView = dynamic(() => import('../../../../components/app/map-view'), {
   ssr: false,
@@ -654,7 +655,12 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         <Button 
                                             size="icon" 
                                             variant="ghost" 
-                                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-slate-400 hover:text-primary"
+                                            className={cn(
+                                                "absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8",
+                                                selectedDay?.startLat && selectedDay?.startLng 
+                                                    ? 'text-green-500 hover:text-green-400' 
+                                                    : 'text-slate-400 hover:text-primary'
+                                            )}
                                             onClick={() => handleGeocodeDayLocation('start')}
                                             disabled={isGeocoding === 'start' || !startLocation || selectedDayIndex > 0}
                                             aria-label="Géolocaliser le lieu de départ"
@@ -678,7 +684,12 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         <Button 
                                             size="icon" 
                                             variant="ghost" 
-                                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-slate-400 hover:text-primary"
+                                            className={cn(
+                                                "absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8",
+                                                selectedDay?.endLat && selectedDay?.endLng 
+                                                    ? 'text-green-500 hover:text-green-400' 
+                                                    : 'text-slate-400 hover:text-primary'
+                                            )}
                                             onClick={() => handleGeocodeDayLocation('end')}
                                             disabled={isGeocoding === 'end' || !endLocation}
                                             aria-label="Géolocaliser le lieu d'arrivée"

@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useState, useRef } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
 
@@ -182,9 +183,8 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onG
             )}
             {event.locationName && (
               <div className="flex items-center gap-2">
-                <MapPin className="h-3.5 w-3.5" />
+                <MapPin className={cn("h-3.5 w-3.5", event.lat && event.lng ? "text-green-500" : "")} />
                 <span>{event.locationName}</span>
-                {event.lat && event.lng && <span className="text-xs text-slate-500">(géolocalisé)</span>}
               </div>
             )}
           </div>
