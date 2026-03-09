@@ -93,3 +93,15 @@ export const TransportSuggestionOutputSchema = z.object({
   suggestions: z.array(TransportSuggestionSchema),
 });
 export type TransportSuggestionOutput = z.infer<typeof TransportSuggestionOutputSchema>;
+
+// From ai-geocode-location.ts
+export const GeocodeInputSchema = z.object({
+  location: z.string().describe("The location name or address to geocode."),
+});
+export type GeocodeInput = z.infer<typeof GeocodeInputSchema>;
+
+export const GeocodeOutputSchema = z.object({
+  lat: z.number().describe("The latitude of the location."),
+  lng: z.number().describe("The longitude of the location."),
+});
+export type GeocodeOutput = z.infer<typeof GeocodeOutputSchema>;

@@ -43,7 +43,10 @@ export function TransportSuggestionCard({ startEvent, endEvent }: TransportSugge
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const canGenerate = (startEvent.lat && startEvent.lng && endEvent.lat && endEvent.lng) || (startEvent.locationName && endEvent.locationName);
+
   const handleGenerate = async () => {
+    if (!canGenerate) return;
     setIsLoading(true);
     setError(null);
     setSuggestions(null);
@@ -58,6 +61,7 @@ export function TransportSuggestionCard({ startEvent, endEvent }: TransportSugge
   };
 
   if (!suggestions && !isLoading && !error) {
+    if (!canGenerate) return null;
     return (
       <div className="flex justify-center items-center my-2 transition-all duration-300 ease-in-out">
         <div className="h-px bg-slate-700 flex-grow"></div>

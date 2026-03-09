@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit } from 'lucide-react';
+import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import EventCard, { type Event as EventType, type Attachment } from '@/components/app/event-card';
 import { TransportSuggestionCard } from '@/components/app/transport-suggestion-card';
@@ -26,6 +26,7 @@ import { fr } from 'date-fns/locale';
 import { generateTripItinerary } from '@/ai/flows/ai-generate-trip-itinerary';
 import type { GenerateItineraryInput } from '@/ai/types';
 import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
+import { geocodeLocation } from '@/ai/flows/ai-geocode-location';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, orderBy, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
@@ -49,6 +50,10 @@ interface Day {
     orderIndex: number;
     startLocationName?: string;
     endLocationName?: string;
+    startLat?: number;
+    startLng?: number;
+    endLat?: number;
+    endLng?: number;
 }
 
 const eventFormSchema = z.object({
@@ -74,6 +79,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [startLocation, setStartLocation] = useState('');
   const [endLocation, setEndLocation] = useState('');
+  const [isGeocoding, setIsGeocoding] = useState<null | 'start' | 'end' | string>(null);
 
   // --- Data Fetching from Firestore ---
   const tripRef = useMemoFirebase(() => {
@@ -132,16 +138,72 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
     if (field === 'start') {
         const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
-        updateDocumentNonBlocking(dayRef, { startLocationName: value });
+        updateDocumentNonBlocking(dayRef, { startLocationName: value, startLat: null, startLng: null });
     } else { // field === 'end'
         const currentDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
-        updateDocumentNonBlocking(currentDayRef, { endLocationName: value });
+        updateDocumentNonBlocking(currentDayRef, { endLocationName: value, endLat: null, endLng: null });
 
         const nextDay = days?.[selectedDayIndex + 1];
         if (nextDay) {
             const nextDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', nextDay.id);
-            updateDocumentNonBlocking(nextDayRef, { startLocationName: value });
+            updateDocumentNonBlocking(nextDayRef, { startLocationName: value, startLat: null, startLng: null });
         }
+    }
+  };
+
+  const handleGeocodeDayLocation = async (field: 'start' | 'end') => {
+    if (!user || !firestore || !selectedDay) return;
+
+    const locationName = field === 'start' ? startLocation : endLocation;
+    if (!locationName) {
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Le nom du lieu est vide.' });
+        return;
+    }
+
+    setIsGeocoding(field);
+    try {
+        const { lat, lng } = await geocodeLocation({ location: locationName });
+        
+        const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
+        const updateData = field === 'start' 
+            ? { startLat: lat, startLng: lng }
+            : { endLat: lat, endLng: lng };
+
+        updateDocumentNonBlocking(dayRef, updateData);
+
+        toast({ title: 'Géolocalisation réussie', description: `${locationName} a été localisé.` });
+
+    } catch (error: any) {
+        console.error("Geocoding failed:", error);
+        toast({ variant: 'destructive', title: 'Échec de la géolocalisation', description: error.message });
+    } finally {
+        setIsGeocoding(null);
+    }
+  }
+
+  const handleGeocodeEvent = async (eventId: string) => {
+    if (!user || !firestore || !selectedDay || !events) return;
+
+    const eventToGeocode = events.find(e => e.id === eventId);
+    if (!eventToGeocode || !eventToGeocode.locationName) {
+        toast({ variant: 'destructive', title: 'Erreur', description: "Le nom du lieu de l'événement est vide." });
+        return;
+    }
+
+    setIsGeocoding(eventId);
+    try {
+        const { lat, lng } = await geocodeLocation({ location: eventToGeocode.locationName });
+
+        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
+        updateDocumentNonBlocking(eventRef, { lat, lng, updatedAt: serverTimestamp() });
+
+        toast({ title: 'Géolocalisation réussie', description: `${eventToGeocode.locationName} a été localisé.` });
+
+    } catch (error: any) {
+        console.error("Geocoding failed:", error);
+        toast({ variant: 'destructive', title: 'Échec de la géolocalisation', description: error.message });
+    } finally {
+        setIsGeocoding(null);
     }
   };
 
@@ -175,6 +237,12 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 date: dayDate,
                 orderIndex: i,
                 notes: "",
+                startLocationName: "",
+                endLocationName: "",
+                startLat: null,
+                startLng: null,
+                endLat: null,
+                endLng: null,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
@@ -248,6 +316,12 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 tripId: tripId,
                 date: new Date(generatedDay.date),
                 orderIndex: dayIdx,
+                startLocationName: generatedDay.location,
+                endLocationName: generatedDay.location,
+                startLat: null,
+                startLng: null,
+                endLat: null,
+                endLng: null,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
@@ -549,8 +623,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         )
                                     })}
                                 </CarouselContent>
-                                <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden" />
-                                <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden" />
+                                <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
+                                <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
                             </Carousel>
                         </div>
                     </div>
@@ -567,27 +641,51 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                             <CardContent className="p-4 space-y-4">
                                 <div>
                                     <Label htmlFor="start-location" className="text-xs font-semibold text-slate-400">Lieu de départ</Label>
-                                    <Input
-                                        id="start-location"
-                                        value={startLocation}
-                                        onChange={(e) => setStartLocation(e.target.value)}
-                                        onBlur={(e) => handleLocationUpdate('start', e.target.value)}
-                                        placeholder="Hôtel, aéroport, gare..."
-                                        className="bg-slate-900/50 border-slate-700 mt-1"
-                                        disabled={selectedDayIndex > 0}
-                                    />
+                                    <div className="relative flex items-center mt-1">
+                                        <Input
+                                            id="start-location"
+                                            value={startLocation}
+                                            onChange={(e) => setStartLocation(e.target.value)}
+                                            onBlur={(e) => handleLocationUpdate('start', e.target.value)}
+                                            placeholder="Hôtel, aéroport, gare..."
+                                            className="bg-slate-900/50 border-slate-700 pr-10"
+                                            disabled={selectedDayIndex > 0}
+                                        />
+                                        <Button 
+                                            size="icon" 
+                                            variant="ghost" 
+                                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-slate-400 hover:text-primary"
+                                            onClick={() => handleGeocodeDayLocation('start')}
+                                            disabled={isGeocoding === 'start' || !startLocation || selectedDayIndex > 0}
+                                            aria-label="Géolocaliser le lieu de départ"
+                                        >
+                                            {isGeocoding === 'start' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
                                     {selectedDayIndex > 0 && <p className="text-xs text-slate-500 mt-1">Défini par le lieu d'arrivée du jour précédent.</p>}
                                 </div>
                                 <div>
                                     <Label htmlFor="end-location" className="text-xs font-semibold text-slate-400">Lieu d'arrivée</Label>
-                                    <Input
-                                        id="end-location"
-                                        value={endLocation}
-                                        onChange={(e) => setEndLocation(e.target.value)}
-                                        onBlur={(e) => handleLocationUpdate('end', e.target.value)}
-                                        placeholder="Hôtel, aéroport, gare..."
-                                        className="bg-slate-900/50 border-slate-700 mt-1"
-                                    />
+                                    <div className="relative flex items-center mt-1">
+                                        <Input
+                                            id="end-location"
+                                            value={endLocation}
+                                            onChange={(e) => setEndLocation(e.target.value)}
+                                            onBlur={(e) => handleLocationUpdate('end', e.target.value)}
+                                            placeholder="Hôtel, aéroport, gare..."
+                                            className="bg-slate-900/50 border-slate-700 pr-10"
+                                        />
+                                        <Button 
+                                            size="icon" 
+                                            variant="ghost" 
+                                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-slate-400 hover:text-primary"
+                                            onClick={() => handleGeocodeDayLocation('end')}
+                                            disabled={isGeocoding === 'end' || !endLocation}
+                                            aria-label="Géolocaliser le lieu d'arrivée"
+                                        >
+                                            {isGeocoding === 'end' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -601,9 +699,9 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                             ) : dayEvents.length > 0 ? (
                                dayEvents.map((event, index) => (
                                  <React.Fragment key={event.id}>
-                                    {index === 0 && startLocation && (
+                                    {index === 0 && (startLocation || selectedDay?.startLat) && (
                                         <TransportSuggestionCard 
-                                            startEvent={{ title: 'Lieu de départ', locationName: startLocation }}
+                                            startEvent={{ title: 'Lieu de départ', locationName: startLocation, lat: selectedDay?.startLat, lng: selectedDay?.startLng }}
                                             endEvent={event}
                                         />
                                     )}
@@ -613,8 +711,10 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                       onAddAttachment={(att) => handleAddAttachment(event.id, att)}
                                       onMoveUp={() => handleMoveEvent(event.id, 'up')}
                                       onMoveDown={() => handleMoveEvent(event.id, 'down')}
+                                      onGeocode={handleGeocodeEvent}
                                       isFirst={index === 0}
                                       isLast={index === dayEvents.length - 1}
+                                      isGeocoding={isGeocoding === event.id}
                                     />
                                     {index < dayEvents.length - 1 ? (
                                         <TransportSuggestionCard 
@@ -622,10 +722,10 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                             endEvent={dayEvents[index + 1]}
                                         />
                                     ) : (
-                                        endLocation && (
+                                        (endLocation || selectedDay?.endLat) && (
                                             <TransportSuggestionCard 
                                                 startEvent={event}
-                                                endEvent={{ title: "Lieu d'arrivée", locationName: endLocation }}
+                                                endEvent={{ title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng }}
                                             />
                                         )
                                     )}
@@ -754,5 +854,3 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    

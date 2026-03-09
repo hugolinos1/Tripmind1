@@ -46,8 +46,10 @@ interface EventCardProps {
     onAddAttachment: (attachment: Attachment) => void;
     onMoveUp: () => void;
     onMoveDown: () => void;
+    onGeocode: (eventId: string) => void;
     isFirst: boolean;
     isLast: boolean;
+    isGeocoding: boolean;
 }
 
 const eventTypeConfig = {
@@ -58,7 +60,7 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, isFirst, isLast }: EventCardProps) => {
+const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onGeocode, isFirst, isLast, isGeocoding }: EventCardProps) => {
   const [isEnriching, setIsEnriching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const config = eventTypeConfig[event.type] || eventTypeConfig.activity;
@@ -182,6 +184,7 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, isF
               <div className="flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5" />
                 <span>{event.locationName}</span>
+                {event.lat && event.lng && <span className="text-xs text-slate-500">(géolocalisé)</span>}
               </div>
             )}
           </div>
@@ -229,6 +232,10 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, isF
                         Déplacer vers le bas
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onGeocode(event.id)} disabled={isGeocoding}>
+                        {isGeocoding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
+                        <span>Géolocaliser</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem>
                         <Edit className="mr-2 h-4 w-4" />
                         Modifier
