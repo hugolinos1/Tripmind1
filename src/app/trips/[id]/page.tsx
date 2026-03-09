@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -31,14 +30,14 @@ import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
 import { geocodeLocation } from '@/ai/flows/ai-geocode-location';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, serverTimestamp, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, collection, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 
-const MapView = dynamic(() => import('../../../../components/app/map-view'), {
+const MapView = dynamic(() => import('@/components/app/map-view'), {
   ssr: false,
   loading: () => <div className="bg-slate-800 animate-pulse w-full h-full" />,
 });
@@ -140,61 +139,56 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     setIsEventFormOpen(true);
   };
 
-  const handleEventFormSubmit = async (values: EventFormValues) => {
+  const handleEventFormSubmit = (values: EventFormValues) => {
     if (!user || !firestore || !selectedDay) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de sauvegarder l'événement." });
+      toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
       return;
     }
   
-    try {
-      if (currentEvent) {
-        // Edit existing event
-        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', currentEvent.id);
-        const dataToUpdate = {
-          title: values.title,
-          type: values.type,
-          startTime: values.startTime || null,
-          durationMinutes: values.durationMinutes || null,
-          locationName: values.locationName || '',
-          updatedAt: serverTimestamp(),
-        };
-        await updateDoc(eventRef, dataToUpdate);
-        toast({ title: "Événement mis à jour !", description: `L'événement "${values.title}" a été modifié.` });
-      } else {
-        // Add new event
-        const orderIndex = events?.length || 0;
-        const eventId = uuidv4();
-        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
-        
-        const eventData = {
-          dayId: selectedDay.id,
-          type: values.type,
-          title: values.title,
-          description: '',
-          startTime: values.startTime || null,
-          durationMinutes: values.durationMinutes || null,
-          locationName: values.locationName || '',
-          lat: null,
-          lng: null,
-          orderIndex: orderIndex,
-          isAiEnriched: false,
-          photos: [],
-          practicalInfo: JSON.stringify({}),
-          attachments: [],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        };
-        await setDoc(eventRef, eventData);
-        toast({ title: "Événement ajouté !", description: `L'événement "${values.title}" a été ajouté.` });
-      }
-    } catch (error) {
-      console.error("Error saving event:", error);
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de sauvegarder l'événement." });
-    } finally {
-      setIsEventFormOpen(false);
-      setCurrentEvent(null);
-      eventForm.reset();
+    if (currentEvent) {
+      // Edit existing event
+      const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', currentEvent.id);
+      const dataToUpdate = {
+        title: values.title,
+        type: values.type,
+        startTime: values.startTime || null,
+        durationMinutes: values.durationMinutes || null,
+        locationName: values.locationName || '',
+        updatedAt: serverTimestamp(),
+      };
+      updateDocumentNonBlocking(eventRef, dataToUpdate);
+      toast({ title: 'Événement mis à jour !', description: `L'événement "${values.title}" a été modifié.` });
+    } else {
+      // Add new event
+      const orderIndex = events?.length || 0;
+      const eventId = uuidv4();
+      const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
+      
+      const eventData = {
+        dayId: selectedDay.id,
+        type: values.type,
+        title: values.title,
+        description: '',
+        startTime: values.startTime || null,
+        durationMinutes: values.durationMinutes || null,
+        locationName: values.locationName || '',
+        lat: null,
+        lng: null,
+        orderIndex: orderIndex,
+        isAiEnriched: false,
+        photos: [],
+        practicalInfo: JSON.stringify({}),
+        attachments: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      setDocumentNonBlocking(eventRef, eventData, { merge: false });
+      toast({ title: 'Événement ajouté !', description: `L'événement "${values.title}" a été ajouté.` });
     }
+
+    setIsEventFormOpen(false);
+    setCurrentEvent(null);
+    eventForm.reset();
   };
 
   // Reset selected day if days change
@@ -960,7 +954,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                         </div>
                     </div>
                   </div>
-                  <div className="bg-bg-dark h-full min-h-[300px] lg:min-h-0 relative z-0">
+                  <div className="bg-bg-dark h-full min-h-[300px] lg:min-h-0 relative">
                     <MapView events={dayEvents} day={selectedDay} />
                   </div>
                 </div>
