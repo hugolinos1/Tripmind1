@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe, Paperclip, FileText, PlusCircle } from "lucide-react";
+import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe, Paperclip, FileText, PlusCircle, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
@@ -37,12 +37,17 @@ export interface Event {
   lat?: number;
   lng?: number;
   attachments?: Attachment[];
+  orderIndex: number;
 }
 
 interface EventCardProps {
     event: Event;
     onEnrich: (eventId: string) => Promise<void>;
     onAddAttachment: (attachment: Attachment) => void;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
+    isFirst: boolean;
+    isLast: boolean;
 }
 
 const eventTypeConfig = {
@@ -53,7 +58,7 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-const EventCard = ({ event, onEnrich, onAddAttachment }: EventCardProps) => {
+const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, isFirst, isLast }: EventCardProps) => {
   const [isEnriching, setIsEnriching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const config = eventTypeConfig[event.type] || eventTypeConfig.activity;
@@ -215,6 +220,15 @@ const EventCard = ({ event, onEnrich, onAddAttachment }: EventCardProps) => {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={onMoveUp} disabled={isFirst}>
+                        <ArrowUp className="mr-2 h-4 w-4" />
+                        Déplacer vers le haut
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onMoveDown} disabled={isLast}>
+                        <ArrowDown className="mr-2 h-4 w-4" />
+                        Déplacer vers le bas
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem>
                         <Edit className="mr-2 h-4 w-4" />
                         Modifier

@@ -392,6 +392,39 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleMoveEvent = async (eventId: string, direction: 'up' | 'down') => {
+    if (!user || !firestore || !selectedDay || !events || events.length < 2) return;
+
+    const eventIndex = events.findIndex(e => e.id === eventId);
+    if (eventIndex === -1) return;
+
+    const otherEventIndex = direction === 'up' ? eventIndex - 1 : eventIndex + 1;
+    if (otherEventIndex < 0 || otherEventIndex >= events.length) return;
+
+    const eventToMove = events[eventIndex];
+    const otherEvent = events[otherEventIndex];
+
+    const batch = writeBatch(firestore);
+
+    const eventToMoveRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventToMove.id);
+    batch.update(eventToMoveRef, { orderIndex: otherEvent.orderIndex, updatedAt: serverTimestamp() });
+
+    const otherEventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', otherEvent.id);
+    batch.update(otherEventRef, { orderIndex: eventToMove.orderIndex, updatedAt: serverTimestamp() });
+
+    try {
+        await batch.commit();
+        toast({ title: "Ordre mis à jour", description: "L'ordre des événements a été modifié." });
+    } catch (error) {
+        console.error("Error reordering events: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: "Impossible de réorganiser les événements."
+        });
+    }
+  };
+
 
   const isLoading = isTripLoading || isDaysLoading;
 
@@ -568,7 +601,15 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                             ) : dayEvents.length > 0 ? (
                                dayEvents.map((event, index) => (
                                  <React.Fragment key={event.id}>
-                                    <EventCard event={event} onEnrich={handleEnrichEvent} onAddAttachment={(att) => handleAddAttachment(event.id, att)} />
+                                    <EventCard 
+                                      event={event} 
+                                      onEnrich={handleEnrichEvent} 
+                                      onAddAttachment={(att) => handleAddAttachment(event.id, att)}
+                                      onMoveUp={() => handleMoveEvent(event.id, 'up')}
+                                      onMoveDown={() => handleMoveEvent(event.id, 'down')}
+                                      isFirst={index === 0}
+                                      isLast={index === dayEvents.length - 1}
+                                    />
                                     {index < dayEvents.length - 1 && (
                                         <TransportSuggestionCard 
                                             startEvent={event}
