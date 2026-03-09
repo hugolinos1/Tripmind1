@@ -4,15 +4,111 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
 import { AppHeader } from "@/components/app/app-header";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useUser, useCollection, useFirestore, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+
+function isValidDate(d: any) {
+  return d instanceof Date && !isNaN(d.getTime());
+}
+
+function TripCard({ trip }: { trip: any }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const startDate = trip.startDate?.toDate ? trip.startDate.toDate() : new Date(trip.startDate);
+  const endDate = trip.endDate?.toDate ? trip.endDate.toDate() : new Date(trip.endDate);
+  
+  const image = { imageUrl: `https://picsum.photos/seed/${trip.id}/800/400`, imageHint: 'travel landscape' };
+
+  const handleDelete = () => {
+      if (!user || !firestore) {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Vous devez être connecté pour supprimer un voyage.",
+        });
+        return;
+      };
+      const tripRef = doc(firestore, 'users', user.uid, 'trips', trip.id);
+      deleteDocumentNonBlocking(tripRef);
+      toast({
+          title: "Voyage supprimé",
+          description: `Le voyage "${trip.title}" a été supprimé.`,
+      });
+  }
+  
+  return (
+      <Card className="overflow-hidden h-full flex flex-col group border-slate-700/80 bg-slate-900 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
+          <Link href={`/trips/${trip.id}`} className="flex-grow flex flex-col">
+              <CardHeader className="p-0 relative h-48">
+                  <Image
+                      src={image.imageUrl}
+                      alt={trip.title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      data-ai-hint={image.imageHint}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <CardTitle className="absolute bottom-4 left-4 text-2xl font-headline text-white">
+                      {trip.title}
+                  </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-grow p-4">
+                  <p className="text-sm text-slate-400">{Array.isArray(trip.destinations) ? trip.destinations.join(" · ") : ''}</p>
+              </CardContent>
+          </Link>
+          <CardFooter className="p-4 bg-slate-800/30 flex items-center justify-between">
+              <div className="text-sm text-slate-300">
+                  {isValidDate(startDate) && isValidDate(endDate) ? 
+                  `${format(startDate, 'd MMM', { locale: fr })} - ${format(endDate, 'd MMM yyyy', { locale: fr })}`
+                  : 'Dates non définies'}
+              </div>
+              
+              <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                      </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Supprimer le voyage ?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                              Êtes-vous sûr de vouloir supprimer le voyage "{trip.title}" ? Cette action est irréversible.
+                          </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Supprimer
+                          </AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
+          </CardFooter>
+      </Card>
+  );
+}
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -72,46 +168,4 @@ export default function DashboardPage() {
       </main>
     </div>
   );
-}
-
-function TripCard({ trip }: { trip: any }) {
-  // Firestore Timestamps can be converted to JS Date objects.
-  const startDate = trip.startDate?.toDate ? trip.startDate.toDate() : new Date(trip.startDate);
-  const endDate = trip.endDate?.toDate ? trip.endDate.toDate() : new Date(trip.endDate);
-  
-  const image = { imageUrl: `https://picsum.photos/seed/${trip.id}/800/400`, imageHint: 'travel landscape' };
-  
-  return (
-    <Link href={`/trips/${trip.id}`}>
-      <Card className="overflow-hidden h-full flex flex-col group border-slate-700/80 bg-slate-900 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
-        <CardHeader className="p-0 relative h-48">
-          <Image
-            src={image.imageUrl}
-            alt={trip.title}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            data-ai-hint={image.imageHint}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-          <CardTitle className="absolute bottom-4 left-4 text-2xl font-headline text-white">
-            {trip.title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-grow p-4">
-          <p className="text-sm text-slate-400">{Array.isArray(trip.destinations) ? trip.destinations.join(" · ") : ''}</p>
-        </CardContent>
-        <CardFooter className="p-4 bg-slate-800/30">
-          <div className="text-sm text-slate-300">
-            {isValidDate(startDate) && isValidDate(endDate) ? 
-             `${format(startDate, 'd MMM', { locale: fr })} - ${format(endDate, 'd MMM yyyy', { locale: fr })}`
-             : 'Dates non définies'}
-          </div>
-        </CardFooter>
-      </Card>
-    </Link>
-  );
-}
-
-function isValidDate(d: any) {
-  return d instanceof Date && !isNaN(d.getTime());
 }
