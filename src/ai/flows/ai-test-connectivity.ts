@@ -1,33 +1,50 @@
 'use server';
 /**
- * @fileOverview A Genkit flow for testing basic connectivity to the AI model.
- *
- * - testAiConnectivity - A function that calls the AI model with a simple prompt.
- * - TestConnectivityInput - The input type for the function.
- * - TestConnectivityOutput - The return type for the function.
+ * @fileOverview Test connectivity to OpenRouter.
+ * This file uses the native fetch API to connect to OpenRouter, bypassing any SDK issues.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+export async function testOpenRouterConnectivity(prompt: string): Promise<string> {
+    const apiKey = process.env.OPENROUTER_API_KEY;
 
-export type TestConnectivityInput = string;
-export type TestConnectivityOutput = string;
+    if (!apiKey) {
+        throw new Error("La variable d'environnement OPENROUTER_API_KEY n'est pas définie.");
+    }
 
-export async function testAiConnectivity(prompt: TestConnectivityInput): Promise<TestConnectivityOutput> {
-  return testConnectivityFlow(prompt);
+    try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "openrouter/auto", // Use auto-selection for free models
+                messages: [
+                    { role: "system", content: "You are a test assistant. Confirm that you received the message with a simple, polite sentence in French." },
+                    { role: "user", content: prompt }
+                ],
+            })
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            console.error("Erreur de l'API OpenRouter:", errorBody);
+            throw new Error(`Erreur de l'API OpenRouter: ${response.status} ${response.statusText}. Détails: ${errorBody?.error?.message || 'Aucun détail'}`);
+        }
+
+        const data = await response.json();
+        const message = data.choices[0]?.message?.content;
+
+        if (!message) {
+            throw new Error("Réponse vide ou malformée reçue d'OpenRouter.");
+        }
+
+        return message;
+
+    } catch (e: any) {
+        console.error("Erreur lors de l'appel à OpenRouter:", e);
+        // Re-throw a user-friendly error for the test page.
+        throw new Error(`Échec de la connexion à OpenRouter. Détails: ${e.message}`);
+    }
 }
-
-const testConnectivityFlow = ai.defineFlow(
-  {
-    name: 'testConnectivityFlow',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-  },
-  async (prompt) => {
-    const llmResponse = await ai.generate({
-      prompt: `This is a connectivity test. Please respond with a short, simple, polite confirmation message in French confirming you received the following message. Your response should only contain that confirmation. The message is: "${prompt}"`,
-      model: 'gemini-pro', // Explicitly use the reliable model for the test.
-    });
-    return llmResponse.text;
-  }
-);

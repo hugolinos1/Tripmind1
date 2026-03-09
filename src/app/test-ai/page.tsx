@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { testAiConnectivity } from '@/ai/flows/ai-test-connectivity';
+import { testOpenRouterConnectivity } from '@/ai/flows/ai-test-connectivity';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,15 +20,11 @@ export default function TestAiPage() {
     setResponse('');
     setError('');
     try {
-      const result = await testAiConnectivity(prompt);
+      const result = await testOpenRouterConnectivity(prompt);
       setResponse(result);
     } catch (e: any) {
       console.error(e);
-      // Try to provide a more detailed error message
       let errorMessage = e.message || 'Une erreur inconnue est survenue.';
-      if (e.cause) {
-        errorMessage += `\nCause: ${JSON.stringify(e.cause, null, 2)}`;
-      }
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -51,6 +47,7 @@ export default function TestAiPage() {
             <CardTitle className="font-headline text-2xl">Test de Connectivité IA</CardTitle>
             <CardDescription>
               Utilisez ce formulaire pour envoyer un message simple au modèle d'IA et vérifier si la connexion fonctionne correctement.
+              Cette page utilise désormais OpenRouter.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
