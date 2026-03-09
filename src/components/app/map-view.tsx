@@ -25,10 +25,10 @@ interface MapViewProps {
   events: Event[];
 }
 
-const getMarkerIcon = (color: string) => {
+const getMarkerIcon = (color: string, index: number) => {
     return L.divIcon({
         className: 'custom-div-icon',
-        html: `<div style="background-color:${color};" class="marker-pin"></div>`,
+        html: `<div style="background-color:${color};" class="marker-pin"><span>${index}</span></div>`,
         iconSize: [30, 42],
         iconAnchor: [15, 42]
     });
@@ -46,6 +46,16 @@ const mapStyle = `
   margin: -15px 0 0 -12px;
   border: 2px solid #ffffff;
   box-shadow: 0 0 5px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.custom-div-icon .marker-pin > span {
+  transform: rotate(45deg);
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  font-family: sans-serif;
 }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
   background: #1e293b;
@@ -88,11 +98,11 @@ const MapView = ({ events }: MapViewProps) => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
-        {validEvents.map((event) => (
+        {validEvents.map((event, index) => (
           <Marker
             key={event.id}
             position={[event.lat!, event.lng!]}
-            icon={getMarkerIcon(eventTypeColors[event.type])}
+            icon={getMarkerIcon(eventTypeColors[event.type], index + 1)}
           >
             <Popup>{event.title}</Popup>
           </Marker>
