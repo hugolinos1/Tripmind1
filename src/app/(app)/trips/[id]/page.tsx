@@ -9,11 +9,12 @@ import * as z from 'zod';
 
 import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit } from 'lucide-react';
 import Link from 'next/link';
@@ -46,6 +47,8 @@ interface Day {
         nanoseconds: number;
     }; // Firestore Timestamp
     orderIndex: number;
+    startLocationName?: string;
+    endLocationName?: string;
 }
 
 const eventFormSchema = z.object({
@@ -69,6 +72,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [isGenerating, setIsGenerating] = useState<'full' | 'day' | false>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [startLocation, setStartLocation] = useState('');
+  const [endLocation, setEndLocation] = useState('');
 
   // --- Data Fetching from Firestore ---
   const tripRef = useMemoFirebase(() => {
@@ -107,6 +112,38 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     setSelectedDayIndex(0);
   }, [days?.length]);
+
+  useEffect(() => {
+    if (selectedDay) {
+        setStartLocation(selectedDay.startLocationName || '');
+        setEndLocation(selectedDay.endLocationName || '');
+    } else {
+        setStartLocation('');
+        setEndLocation('');
+    }
+  }, [selectedDay]);
+
+  const handleLocationUpdate = (field: 'start' | 'end', value: string) => {
+    if (!user || !firestore || !selectedDay) return;
+    
+    if ((field === 'start' && value === selectedDay.startLocationName) || (field === 'end' && value === selectedDay.endLocationName)) return;
+
+    toast({ title: "Mise à jour...", description: "Enregistrement du lieu." });
+
+    if (field === 'start') {
+        const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
+        updateDocumentNonBlocking(dayRef, { startLocationName: value });
+    } else { // field === 'end'
+        const currentDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
+        updateDocumentNonBlocking(currentDayRef, { endLocationName: value });
+
+        const nextDay = days?.[selectedDayIndex + 1];
+        if (nextDay) {
+            const nextDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', nextDay.id);
+            updateDocumentNonBlocking(nextDayRef, { startLocationName: value });
+        }
+    }
+  };
 
   const handleCreateDaysManually = async () => {
     if (!tripData || !user || !firestore) {
@@ -492,6 +529,36 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                         <h2 className="text-xl font-bold mb-4 font-headline capitalize">
                             {dayDate ? format(dayDate, 'EEEE d MMMM', { locale: fr }) : ''}
                         </h2>
+                        
+                        <Card className="mb-6 bg-slate-800/50 border-slate-700/50">
+                            <CardContent className="p-4 space-y-4">
+                                <div>
+                                    <Label htmlFor="start-location" className="text-xs font-semibold text-slate-400">Lieu de départ</Label>
+                                    <Input
+                                        id="start-location"
+                                        value={startLocation}
+                                        onChange={(e) => setStartLocation(e.target.value)}
+                                        onBlur={(e) => handleLocationUpdate('start', e.target.value)}
+                                        placeholder="Hôtel, aéroport, gare..."
+                                        className="bg-slate-900/50 border-slate-700 mt-1"
+                                        disabled={selectedDayIndex > 0}
+                                    />
+                                    {selectedDayIndex > 0 && <p className="text-xs text-slate-500 mt-1">Défini par le lieu d'arrivée du jour précédent.</p>}
+                                </div>
+                                <div>
+                                    <Label htmlFor="end-location" className="text-xs font-semibold text-slate-400">Lieu d'arrivée</Label>
+                                    <Input
+                                        id="end-location"
+                                        value={endLocation}
+                                        onChange={(e) => setEndLocation(e.target.value)}
+                                        onBlur={(e) => handleLocationUpdate('end', e.target.value)}
+                                        placeholder="Hôtel, aéroport, gare..."
+                                        className="bg-slate-900/50 border-slate-700 mt-1"
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+
                         <div className="space-y-4">
                             {isEventsLoading ? (
                                 <>
