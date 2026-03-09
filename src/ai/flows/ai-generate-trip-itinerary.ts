@@ -69,6 +69,7 @@ export type GenerateItineraryInput = z.infer<typeof GenerateItineraryInputSchema
 const generateItineraryPrompt = ai.definePrompt({
   name: 'generateItineraryPrompt',
   input: { schema: GenerateItineraryInputSchema },
+  output: { schema: GenerateItineraryOutputSchema },
   config: {
     temperature: 0.7,
   },
@@ -79,8 +80,7 @@ Instructions Clés :
 2.  **Pertinence :** Assure-toi que les activités et lieux sont pertinents par rapport aux destinations et aux intérêts de l'utilisateur.
 3.  **Détails Complets :** Pour chaque événement, fournis toutes les informations requises : type, titre, description, heure de début, durée, nom du lieu, adresse complète, et coordonnées géographiques (latitude et longitude). Si une adresse exacte n'est pas pertinente (par ex. "Balade dans le quartier"), donne une adresse centrale ou une description claire de la zone, avec des coordonnées approximatives.
 4.  **Réalisme :** Crée un itinéraire réaliste. Prends en compte les temps de trajet entre les lieux, les heures d'ouverture probables et un rythme de voyage équilibré en fonction de la préférence "pace".
-5.  **Formatage Strict :** La sortie doit être uniquement l'objet JSON, sans texte d'introduction, de conclusion ou de commentaires.
-6.  **Gestion des Dates :** Calcule les dates pour chaque jour de l'itinéraire en te basant sur les 'startDate' et 'endDate' fournies.
+5.  **Gestion des Dates :** Calcule les dates pour chaque jour de l'itinéraire en te basant sur les 'startDate' et 'endDate' fournies.
 
 ---
 
@@ -102,9 +102,7 @@ Préférences de voyage:
   - Lieux déjà visités: {{#each preferences.alreadyVisited}}- {{this}}
   {{/each}}
   - Lieux à voir absolument: {{#each preferences.mustSee}}- {{this}}
-  {{/each}}
-  
-Réponds uniquement en format JSON.`
+  {{/each}}`
 });
 
 const generateTripItineraryFlow = ai.defineFlow(
@@ -114,21 +112,13 @@ const generateTripItineraryFlow = ai.defineFlow(
     outputSchema: GenerateItineraryOutputSchema,
   },
   async (input) => {
-    const response = await generateItineraryPrompt(input);
-    const textResponse = response.text;
+    const { output } = await generateItineraryPrompt(input);
     
-    if (!textResponse) {
+    if (!output) {
       throw new Error('Failed to generate itinerary: AI returned no output.');
     }
-    
-    try {
-      const jsonText = textResponse.replace(/^```json\n?/, '').replace(/```$/, '');
-      const parsed = JSON.parse(jsonText);
-      return GenerateItineraryOutputSchema.parse(parsed);
-    } catch (e) {
-      console.error("Failed to parse AI response:", e, "Raw response:", textResponse);
-      throw new Error("Failed to parse AI JSON response.");
-    }
+
+    return output;
   }
 );
 

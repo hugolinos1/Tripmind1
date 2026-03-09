@@ -205,24 +205,18 @@ export type GetDestinationInsightsOutput = z.infer<typeof GetDestinationInsights
 const getDestinationInsightsPrompt = ai.definePrompt({
   name: 'getDestinationInsightsPrompt',
   input: { schema: GetDestinationInsightsInputSchema },
+  output: { schema: GetDestinationInsightsOutputSchema },
   prompt: `
     You are an expert travel guide providing comprehensive practical information about travel destinations.
-    Your goal is to provide a detailed, well-structured JSON response based on the user's request.
+    Your goal is to provide a detailed, well-structured response based on the user's request.
 
     **Destinations:** {{{destinations}}}
 
     {{#if section}}
-    **Focus:** You are specifically asked to provide information for the '{{{section}}}' section. While generating the full JSON structure, prioritize detailed content for the '{{{section}}}' key. For other top-level keys, you can provide concise summaries or empty arrays/objects if they are not the primary focus, but ensure all top-level keys are present in the final JSON object to maintain structural integrity.
+    **Focus:** You are specifically asked to provide information for the '{{{section}}}' section. While generating the full structure, prioritize detailed content for the '{{{section}}}' key. For other top-level keys, you can provide concise summaries or empty arrays/objects if they are not the primary focus, but ensure all top-level keys are present in the final JSON object to maintain structural integrity.
     {{else}}
     **Focus:** Provide comprehensive practical information covering all sections described below for the destination(s).
     {{/if}}
-
-    **Output Format:**
-    Generate a single JSON object with the following top-level keys: "vocabulary", "gastronomy", "customs", "currency", "prices", "prohibitions", "scams", "mustSee", "hiddenGems", "transportation", "weather", "emergency".
-    Each key must map to an object or array corresponding to its section's detailed schema.
-    If you cannot find specific information for any field, provide an empty string for text fields, an empty array for array fields, or null for nullable fields, ensuring the structure is always valid JSON.
-    Do not include any introductory or concluding text outside the JSON object.
-    The output should strictly conform to the JSON schema provided by the system.
   `
 });
 
@@ -234,21 +228,13 @@ const getDestinationInsightsFlow = ai.defineFlow(
     outputSchema: GetDestinationInsightsOutputSchema
   },
   async (input) => {
-    const response = await getDestinationInsightsPrompt(input);
-    const textResponse = response.text;
+    const { output } = await getDestinationInsightsPrompt(input);
 
-    if (!textResponse) {
+    if (!output) {
       throw new Error('AI failed to generate destination insights.');
     }
     
-    try {
-      const jsonText = textResponse.replace(/^```json\n?/, '').replace(/```$/, '');
-      const parsed = JSON.parse(jsonText);
-      return GetDestinationInsightsOutputSchema.parse(parsed);
-    } catch (e) {
-      console.error("Failed to parse AI response:", e, "Raw response:", textResponse);
-      throw new Error("Failed to parse AI JSON response.");
-    }
+    return output;
   }
 );
 
