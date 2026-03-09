@@ -51,7 +51,7 @@ const ItineraryDaySchema = z.object({
   events: z.array(ItineraryEventSchema).describe('List of events for the day, ordered chronologically.'),
 });
 
-export const GenerateItineraryInputSchema = z.object({
+const GenerateItineraryInputSchema = z.object({
   tripId: z.string().describe('The ID of the trip.'),
   title: z.string().describe('The title of the trip.'),
   destinations: z.array(z.string()).describe('A list of destinations for the trip, e.g., ["Paris", "Lyon"].'),
@@ -62,7 +62,7 @@ export const GenerateItineraryInputSchema = z.object({
 });
 export type GenerateItineraryInput = z.infer<typeof GenerateItineraryInputSchema>;
 
-export const GenerateItineraryOutputSchema = z.array(ItineraryDaySchema).describe('A detailed day-by-day itinerary.');
+const GenerateItineraryOutputSchema = z.array(ItineraryDaySchema).describe('A detailed day-by-day itinerary.');
 export type GenerateItineraryOutput = z.infer<typeof GenerateItineraryOutputSchema>;
 
 
