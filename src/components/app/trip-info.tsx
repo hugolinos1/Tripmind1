@@ -2,12 +2,13 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { BookText, ChefHat, Handshake, Landmark, RefreshCw, Train, Umbrella, Siren, Wallet, Ban, Search, Sprout, Loader2, Terminal, Sparkles } from "lucide-react";
+import { BookText, ChefHat, Handshake, Landmark, RefreshCw, Train, Umbrella, Siren, Wallet, Ban, Search, Sprout, Loader2, Terminal, Sparkles, ChevronDown } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { useState, useCallback, useEffect } from "react";
 import { getDestinationInsights } from "@/ai/flows/ai-get-destination-insights";
 import ReactMarkdown from 'react-markdown';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 
 interface TripInfoProps {
@@ -132,9 +133,19 @@ const InfoCard = ({ title, icon, sectionId, destinations }: InfoCardProps) => {
                     </Alert>
                 )}
                 {content && !isLoading && (
-                    <div className="prose prose-sm prose-invert max-w-none prose-p:text-slate-300 prose-ul:text-slate-300 prose-strong:text-white">
-                        <ReactMarkdown className="[&_p]:my-2 [&_ul]:my-2">{content}</ReactMarkdown>
-                    </div>
+                    <Collapsible>
+                        <CollapsibleTrigger asChild>
+                            <button className="text-sm text-slate-400 hover:text-white flex items-center gap-1 data-[state=open]:text-white mb-2">
+                                Voir les détails
+                                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                            </button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="prose prose-sm prose-invert max-w-none prose-p:text-slate-300 prose-ul:text-slate-300 prose-strong:text-white">
+                                <ReactMarkdown className="[&_p]:my-2 [&_ul]:my-2">{content}</ReactMarkdown>
+                            </div>
+                        </CollapsibleContent>
+                    </Collapsible>
                 )}
                 {!isLoading && !content && !error && (
                     <div className="flex-grow flex flex-col items-center justify-center text-center m-auto">
