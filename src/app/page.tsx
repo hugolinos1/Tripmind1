@@ -17,6 +17,9 @@ export default function LandingPage() {
             <Button asChild>
               <Link href="/dashboard">Commencer gratuitement</Link>
             </Button>
+            <Button variant="outline" asChild>
+              <Link href="/test-ai">Tester l'IA</Link>
+            </Button>
           </div>
         </nav>
       </header>
