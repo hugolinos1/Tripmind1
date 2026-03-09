@@ -2,9 +2,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { BookText, ChefHat, Handshake, Landmark, RefreshCw, Train, Umbrella, Siren, Wallet, Ban, Search, Sprout, Loader2, Terminal } from "lucide-react";
+import { BookText, ChefHat, Handshake, Landmark, RefreshCw, Train, Umbrella, Siren, Wallet, Ban, Search, Sprout, Loader2, Terminal, Sparkles } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { getDestinationInsights } from "@/ai/flows/ai-get-destination-insights";
 import ReactMarkdown from 'react-markdown';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
@@ -60,7 +60,7 @@ interface InfoCardProps {
 
 const InfoCard = ({ title, icon, sectionId, destinations }: InfoCardProps) => {
     const [content, setContent] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchContent = useCallback(async () => {
@@ -75,14 +75,11 @@ const InfoCard = ({ title, icon, sectionId, destinations }: InfoCardProps) => {
             setContent(result.content);
         } catch (e: any) {
             setError(e.message || "Une erreur est survenue.");
+            setContent(null); // Clear content on error
         } finally {
             setIsLoading(false);
         }
     }, [destinations, sectionId, title]);
-
-    useEffect(() => {
-        fetchContent();
-    }, [fetchContent]);
 
     return (
         <Card className="border-slate-800 bg-slate-800/30 flex flex-col">
@@ -91,11 +88,13 @@ const InfoCard = ({ title, icon, sectionId, destinations }: InfoCardProps) => {
                     <div className="text-primary">{icon}</div>
                     <CardTitle className="text-lg font-headline">{title}</CardTitle>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary" onClick={fetchContent} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                </Button>
+                {content && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary" onClick={fetchContent} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    </Button>
+                )}
             </CardHeader>
-            <CardContent className="flex-grow prose prose-sm prose-invert max-w-none prose-p:text-slate-300 prose-ul:text-slate-300 prose-strong:text-white">
+            <CardContent className="flex-grow flex flex-col">
                 {isLoading && (
                     <div className="space-y-2 mt-2">
                         <Skeleton className="h-4 w-4/5 bg-slate-700" />
@@ -108,9 +107,24 @@ const InfoCard = ({ title, icon, sectionId, destinations }: InfoCardProps) => {
                         <Terminal className="h-4 w-4" />
                         <AlertTitle>Erreur</AlertTitle>
                         <AlertDescription className="text-xs">{error}</AlertDescription>
+                         <Button variant="link" size="sm" onClick={fetchContent} className="p-0 h-auto mt-2 text-destructive">
+                            Réessayer
+                        </Button>
                     </Alert>
                 )}
-                {content && !isLoading && <ReactMarkdown className="[&_p]:my-2 [&_ul]:my-2">{content}</ReactMarkdown>}
+                {content && !isLoading && (
+                    <div className="prose prose-sm prose-invert max-w-none prose-p:text-slate-300 prose-ul:text-slate-300 prose-strong:text-white">
+                        <ReactMarkdown className="[&_p]:my-2 [&_ul]:my-2">{content}</ReactMarkdown>
+                    </div>
+                )}
+                {!isLoading && !content && !error && (
+                    <div className="flex-grow flex flex-col items-center justify-center text-center m-auto">
+                        <Button onClick={fetchContent}>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Générer les infos
+                        </Button>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
