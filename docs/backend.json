@@ -12,25 +12,25 @@
         },
         "email": {
           "type": "string",
-          "description": "The user's unique email address.",
+          "description": "Unique email address of the user.",
           "format": "email"
         },
         "name": {
           "type": "string",
-          "description": "The user's display name."
+          "description": "Display name of the user. Can be null."
         },
         "avatar": {
           "type": "string",
-          "description": "URL to the user's avatar image.",
+          "description": "URL to the user's avatar image. Can be null.",
           "format": "uri"
         },
         "language": {
           "type": "string",
-          "description": "The user's preferred language (e.g., 'fr', 'en')."
+          "description": "Preferred language of the user, e.g., 'fr' for French."
         },
         "currency": {
           "type": "string",
-          "description": "The user's preferred currency (e.g., 'EUR', 'USD')."
+          "description": "Preferred currency of the user, e.g., 'EUR' for Euro."
         },
         "createdAt": {
           "type": "string",
@@ -64,11 +64,15 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the User who owns this session. (Relationship: User 1:N Session)"
+          "description": "Reference to the User associated with this session. (Relationship: User 1:N Session)"
+        },
+        "token": {
+          "type": "string",
+          "description": "Unique token used to identify the session."
         },
         "expiresAt": {
           "type": "string",
-          "description": "Timestamp indicating when the session token expires.",
+          "description": "Timestamp when the session will expire.",
           "format": "date-time"
         },
         "createdAt": {
@@ -80,6 +84,7 @@
       "required": [
         "id",
         "userId",
+        "token",
         "expiresAt",
         "createdAt"
       ]
@@ -88,7 +93,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Trip",
       "type": "object",
-      "description": "Represents a user's travel plan, containing overall trip details, destinations, dates, and preferences.",
+      "description": "Represents a travel plan created by a user, including destinations, dates, and preferences.",
       "properties": {
         "id": {
           "type": "string",
@@ -96,15 +101,18 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the User who created this trip. (Relationship: User 1:N Trip)"
+          "description": "Reference to the User who owns this trip. (Relationship: User 1:N Trip)"
         },
         "title": {
           "type": "string",
-          "description": "The title or name of the trip."
+          "description": "Title or name of the travel plan."
         },
         "destinations": {
-          "type": "string",
-          "description": "A JSON array of strings representing the cities or destinations included in the trip (e.g., '[\"Paris\", \"Lyon\"]')."
+          "type": "array",
+          "description": "An array of string representing the names of the destinations included in the trip, e.g., ['Paris', 'Lyon'].",
+          "items": {
+            "type": "string"
+          }
         },
         "startDate": {
           "type": "string",
@@ -118,23 +126,24 @@
         },
         "travelers": {
           "type": "string",
-          "description": "A JSON string describing the number of adults, children's ages, and if pets are included (e.g., '{\"adults\":2, \"children\":[\"5\",\"8\"], \"hasPets\":false}')."
+          "description": "JSON string representing traveler details: { adults: number, children: string[] (ages, e.g., ['5', '8']), hasPets: boolean }."
         },
         "preferences": {
           "type": "string",
-          "description": "A JSON string detailing user preferences like pace, budget, interests, accessibility, dietary needs, already visited places, and must-see locations."
+          "description": "JSON string representing user preferences for the trip: { pace: number (0-100, relaxed to intense), budget: number (0-100, economic to luxury), interests: string[], accessibility: string[], dietary: string[], alreadyVisited: string[], mustSee: string[] }."
         },
         "status": {
           "type": "string",
-          "description": "The current status of the trip (e.g., 'draft', 'active', 'completed', 'archived')."
+          "description": "Current status of the trip (e.g., draft, active, completed, archived).",
+          "format": "enum"
         },
         "shareToken": {
           "type": "string",
-          "description": "A unique token allowing public access to the trip details for sharing purposes."
+          "description": "Unique token for sharing the trip publicly. Can be null."
         },
         "deletedAt": {
           "type": "string",
-          "description": "Timestamp indicating when the trip was soft-deleted, allowing for recovery. Null if not deleted.",
+          "description": "Timestamp indicating when the trip was soft-deleted. Can be null.",
           "format": "date-time"
         },
         "createdAt": {
@@ -144,7 +153,7 @@
         },
         "updatedAt": {
           "type": "string",
-          "description": "Timestamp when the trip details were last updated.",
+          "description": "Timestamp when the trip was last updated.",
           "format": "date-time"
         }
       },
@@ -166,7 +175,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Day",
       "type": "object",
-      "description": "Represents a single day within a trip, including its date, order, and optional notes and location details.",
+      "description": "Represents a single day within a travel plan, containing a sequence of events.",
       "properties": {
         "id": {
           "type": "string",
@@ -183,43 +192,43 @@
         },
         "orderIndex": {
           "type": "number",
-          "description": "The sequential order of this day within the trip, starting from 0."
+          "description": "The sequential order of this day within the trip."
         },
         "notes": {
           "type": "string",
-          "description": "Optional notes or remarks for this day."
+          "description": "Any additional notes or remarks for this day. Can be null."
         },
         "startLocationName": {
           "type": "string",
-          "description": "The name of the starting location for this day."
+          "description": "Name of the starting location for the day. Can be null."
         },
         "startLocationAddress": {
           "type": "string",
-          "description": "The address of the starting location for this day."
+          "description": "Address of the starting location for the day. Can be null."
         },
         "startLat": {
           "type": "number",
-          "description": "Latitude coordinate of the starting location."
+          "description": "Latitude of the starting location for the day. Can be null."
         },
         "startLng": {
           "type": "number",
-          "description": "Longitude coordinate of the starting location."
+          "description": "Longitude of the starting location for the day. Can be null."
         },
         "endLocationName": {
           "type": "string",
-          "description": "The name of the ending location for this day."
+          "description": "Name of the ending location for the day. Can be null."
         },
         "endLocationAddress": {
           "type": "string",
-          "description": "The address of the ending location for this day."
+          "description": "Address of the ending location for the day. Can be null."
         },
         "endLat": {
           "type": "number",
-          "description": "Latitude coordinate of the ending location."
+          "description": "Latitude of the ending location for the day. Can be null."
         },
         "endLng": {
           "type": "number",
-          "description": "Longitude coordinate of the ending location."
+          "description": "Longitude of the ending location for the day. Can be null."
         },
         "createdAt": {
           "type": "string",
@@ -228,7 +237,7 @@
         },
         "updatedAt": {
           "type": "string",
-          "description": "Timestamp when the day details were last updated.",
+          "description": "Timestamp when the day was last updated.",
           "format": "date-time"
         }
       },
@@ -245,7 +254,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Event",
       "type": "object",
-      "description": "Represents a specific activity, meal, or accommodation item planned for a day within a trip.",
+      "description": "Represents a specific activity, visit, or booking within a day of a trip.",
       "properties": {
         "id": {
           "type": "string",
@@ -257,64 +266,71 @@
         },
         "type": {
           "type": "string",
-          "description": "The category of the event (e.g., 'visit', 'meal', 'transport', 'accommodation', 'activity')."
+          "description": "Type of event (e.g., visit, meal, transport, accommodation, activity).",
+          "format": "enum"
         },
         "title": {
           "type": "string",
-          "description": "The title or name of the event."
+          "description": "Title of the event."
         },
         "description": {
           "type": "string",
-          "description": "A detailed description of the event."
+          "description": "Detailed description of the event. Can be null."
         },
         "startTime": {
           "type": "string",
-          "description": "The planned start time of the event in HH:mm format."
+          "description": "Planned start time of the event in HH:mm format. Can be null."
         },
         "durationMinutes": {
           "type": "number",
-          "description": "The estimated duration of the event in minutes."
+          "description": "Estimated duration of the event in minutes. Can be null."
         },
         "locationName": {
           "type": "string",
-          "description": "The name of the location where the event takes place."
+          "description": "Name of the location for the event. Can be null."
         },
         "locationAddress": {
           "type": "string",
-          "description": "The address of the location where the event takes place."
+          "description": "Address of the location for the event. Can be null."
         },
         "lat": {
           "type": "number",
-          "description": "Latitude coordinate of the event location."
+          "description": "Latitude of the event location. Can be null."
         },
         "lng": {
           "type": "number",
-          "description": "Longitude coordinate of the event location."
+          "description": "Longitude of the event location. Can be null."
         },
         "photos": {
-          "type": "string",
-          "description": "A JSON array of URLs to photos related to the event."
+          "type": "array",
+          "description": "An array of URLs for photos related to the event.",
+          "items": {
+            "type": "string"
+          }
         },
         "practicalInfo": {
           "type": "string",
-          "description": "A JSON string containing practical information like opening hours, price range, tips, and best time to visit."
+          "description": "JSON string representing practical information for the event: { openingHours: string, priceRange: string, tips: string[], bestTimeToVisit: string }."
         },
         "estimatedBudget": {
           "type": "number",
-          "description": "The estimated budget or cost for this event."
+          "description": "Estimated budget or cost for the event. Can be null."
         },
         "isAiEnriched": {
           "type": "boolean",
-          "description": "Indicates if the event's details have been enriched by an AI."
+          "description": "Indicates if the event details have been enriched by AI."
         },
         "sourceUrl": {
           "type": "string",
-          "description": "URL to the original source of information for this event.",
+          "description": "URL to an external source for more information about the event. Can be null.",
           "format": "uri"
         },
         "attachments": {
-          "type": "string",
-          "description": "A JSON array of objects representing attached documents for this event, including properties like id, filename, category, etc."
+          "type": "array",
+          "description": "An array of objects, where each object represents an attached file with properties like id (string), filename (string), originalName (string), mimeType (string), size (number), category ('billet', 'voucher', 'reservation', 'itineraire', 'contrat', 'autre'), and uploadedAt (string, ISO date-time format).",
+          "items": {
+            "type": "string"
+          }
         },
         "orderIndex": {
           "type": "number",
@@ -327,7 +343,7 @@
         },
         "updatedAt": {
           "type": "string",
-          "description": "Timestamp when the event details were last updated.",
+          "description": "Timestamp when the event was last updated.",
           "format": "date-time"
         }
       },
@@ -336,7 +352,10 @@
         "dayId",
         "type",
         "title",
+        "photos",
+        "practicalInfo",
         "isAiEnriched",
+        "attachments",
         "orderIndex",
         "createdAt",
         "updatedAt"
@@ -346,7 +365,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Enrichment",
       "type": "object",
-      "description": "Stores the raw AI response and associated metadata when an event's details are enriched.",
+      "description": "Stores the raw AI response for event enrichments, allowing for debugging and analysis.",
       "properties": {
         "id": {
           "type": "string",
@@ -358,11 +377,11 @@
         },
         "rawResponse": {
           "type": "string",
-          "description": "The complete, raw JSON response received from the AI API for the enrichment request."
+          "description": "The complete raw JSON response received from the AI service for the enrichment."
         },
         "tokensUsed": {
           "type": "number",
-          "description": "The number of tokens used in the AI API call for this enrichment."
+          "description": "Number of AI tokens used for this enrichment request. Can be null."
         },
         "createdAt": {
           "type": "string",
@@ -381,8 +400,7 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous",
-      "google.com"
+      "anonymous"
     ]
   },
   "firestore": {
@@ -394,13 +412,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile information, with `userId` as the document ID, enabling direct ownership checks (`request.auth.uid == userId`).",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching `request.auth.uid`."
-            }
-          ]
+          "description": "Stores user profile information, directly identified by the user's Firebase Authentication UID. Accessible only by the authenticated user matching `userId`."
         }
       },
       {
@@ -410,33 +422,7 @@
           "schema": {
             "$ref": "#/backend/entities/Trip"
           },
-          "description": "Stores private trip plans for individual users. Access is restricted to the owning `userId`. The `Trip` document contains `userId` field (which must match the path's `{userId}`) for robust ownership verification and authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user who owns this trip."
-            },
-            {
-              "name": "tripId",
-              "description": "The unique identifier for the specific trip."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/shared_trips/{shareToken}",
-        "definition": {
-          "entityName": "Trip",
-          "schema": {
-            "$ref": "#/backend/entities/Trip"
-          },
-          "description": "Provides public, read-only access to a subset of trip details via a unique `shareToken` (which acts as the document ID). This collection denormalizes relevant public fields from the private `Trip` document and includes `ownerId` and `tripId` for traceability, ensuring structural segregation and authorization independence for public access.",
-          "params": [
-            {
-              "name": "shareToken",
-              "description": "A unique token used to publicly share and access a trip's details."
-            }
-          ]
+          "description": "Stores individual travel plans. These documents are owned by the user identified by `userId` in the path, which matches the `userId` field within the document for direct ownership verification. Includes a `shareToken` field for backend-managed public access."
         }
       },
       {
@@ -446,21 +432,7 @@
           "schema": {
             "$ref": "#/backend/entities/Day"
           },
-          "description": "Stores daily itinerary details for a specific trip. Each `Day` document includes denormalized `ownerId` (matching `{userId}` from the path) and `tripId` (matching `{tripId}` from the path) fields for authorization independence, enabling direct ownership and parent-trip checks without `get()` operations.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user who owns the parent trip."
-            },
-            {
-              "name": "tripId",
-              "description": "The unique identifier of the parent trip."
-            },
-            {
-              "name": "dayId",
-              "description": "The unique identifier for the specific day within the trip."
-            }
-          ]
+          "description": "Represents a single day within a travel plan. Each document includes denormalized `userId` (owner of the trip) and `tripId` for authorization independence, allowing direct ownership checks without querying parent documents."
         }
       },
       {
@@ -470,25 +442,7 @@
           "schema": {
             "$ref": "#/backend/entities/Event"
           },
-          "description": "Stores individual events/activities for a specific day. Each `Event` document includes denormalized `ownerId` (matching `{userId}` from the path), `tripId` (matching `{tripId}` from the path), and `dayId` (matching `{dayId}` from the path) fields for authorization independence, simplifying security rules.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user who owns the parent trip."
-            },
-            {
-              "name": "tripId",
-              "description": "The unique identifier of the parent trip."
-            },
-            {
-              "name": "dayId",
-              "description": "The unique identifier of the parent day."
-            },
-            {
-              "name": "eventId",
-              "description": "The unique identifier for the specific event within the day."
-            }
-          ]
+          "description": "Represents a specific activity, visit, or booking within a day. Each document includes denormalized `userId` (owner of the trip), `tripId`, and `dayId` for authorization independence, enabling robust and efficient security rules."
         }
       },
       {
@@ -498,34 +452,10 @@
           "schema": {
             "$ref": "#/backend/entities/Enrichment"
           },
-          "description": "Stores AI enrichment data for an event. Each `Enrichment` document includes denormalized `ownerId` (matching `{userId}` from the path), `tripId` (matching `{tripId}` from the path), `dayId` (matching `{dayId}` from the path), and `eventId` (matching `{eventId}` from the path) fields for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user who owns the parent trip."
-            },
-            {
-              "name": "tripId",
-              "description": "The unique identifier of the parent trip."
-            },
-            {
-              "name": "dayId",
-              "description": "The unique identifier of the parent day."
-            },
-            {
-              "name": "eventId",
-              "description": "The unique identifier of the parent event."
-            },
-            {
-              "name": "enrichmentId",
-              "description": "The unique identifier for the specific enrichment record."
-            }
-          ]
+          "description": "Stores raw AI responses for event enrichments. Each document includes denormalized `userId` (owner of the trip), `tripId`, `dayId`, and `eventId` for authorization independence, ensuring self-contained access control."
         }
       }
     ],
-    "reasoning": "The recommended Firestore structure is designed with a strong emphasis on Authorization Independence, Structural Segregation, and Path-Based Ownership to ensure simple, robust, and easily debuggable security rules. Each user's data is primarily organized under a \"/users/{userId}\" root, establishing clear ownership.\n\n**Authorization Independence (Mandate A)** is achieved through strategic denormalization. For nested data like \"Day\", \"Event\", and \"Enrichment\", critical authorization context such as \"ownerId\" (the user who owns the trip), \"tripId\", \"dayId\", and \"eventId\" are explicitly copied into each document. This eliminates the need for expensive and complex `get()` calls in security rules to check parent document permissions. For instance, a rule for an \"Event\" document can directly check `request.auth.uid == resource.data.ownerId`, rather than traversing up to the \"Day\" and then \"Trip\" parent documents. This supports atomic writes (transactions/batches) without breaking security assertions.\n\n**Structural Segregation (Mandate B)** is applied to \"Trip\" data to manage differing security postures (private vs. public). User-owned trips, intended for CRUD operations by the owner, reside in \"/users/{userId}/trips/{tripId}\". Publicly shared trips, which require unauthenticated read-only access via a `shareToken`, are segregated into a separate top-level collection: \"/shared_trips/{shareToken}\". This ensures that documents within each collection share a homogeneous security profile, simplifying rules greatly. The `shared_trips` collection would contain a publicly viewable subset of the trip data, including `ownerId` and `tripId` for traceability.\n\n**QAPs (Rules are not Filters)** are inherently supported by this design. For user-specific collections (e.g., \"/users/{userId}/trips\"), `list` operations are automatically filtered by the path, allowing users to only retrieve their own trips, as `request.auth.uid` must match the `{userId}` in the path. For the \"/shared_trips/{shareToken}\" collection, a `list` operation would grant public access to all shared trips (if enabled by rules), but typically, this collection is designed for `get` operations by a specific `shareToken` (document ID). This explicit segregation means rules don't need to act as filters based on document content, preventing insecure data exposure.\n\nAll entity paths use descriptive wildcards (e.g., `{userId}`, `{tripId}`) and maintain a hierarchical structure where appropriate for user-owned, nested data. The \"Session\" entity from the backend specification is presumed to be handled by the backend's internal session management (e.g., using SQLite and an HTTP-only cookie) rather than stored directly in Firestore, as Firebase's authentication mechanism itself provides the primary session context for Firestore rules via `request.auth.uid`."
+    "reasoning": "The recommended Firestore structure prioritizes Authorization Independence and Query-Aware Security Rules (QAPs) by denormalizing authorization context directly into subcollection documents. User-specific data is organized hierarchically under a `/users/{userId}` root, ensuring that all data for a given user is co-located and secured with simple, path-based rules. \n\n**Authorization Independence:** To eliminate the need for `get()` calls in security rules (which are critical for atomic operations and debugging), `userId` (the trip owner's ID) is denormalized and included in `Day`, `Event`, and `Enrichment` documents. Additionally, `tripId` is denormalized into `Event` and `Enrichment` documents, and `dayId` into `Enrichment` documents. This ensures that any document in the hierarchy contains all necessary ancestral identifiers to validate ownership and context directly, without querying parent documents. For example, a rule for an `Event` document can simply check `request.auth.uid == resource.data.userId` and `request.path.matches('/users/{userId}/trips/{tripId}/days/{dayId}/events/{eventId}')`.\n\n**QAPs (Rules are not Filters):** The hierarchical path structure `/users/{userId}/trips/{tripId}/...` inherently supports QAPs. When a client performs a `list` query on, for example, `/users/{userId}/trips`, the Firestore security rules can enforce that `request.auth.uid == userId` from the path wildcard. This ensures that users can only list *their own* trips, and similarly for days, events, and enrichments. No `list` operation will implicitly return data belonging to other users or data that the current user is not authorized to see, thus avoiding the 'rules are not filters' trap.\n\n**Share Token Handling:** The `shareToken` on the `Trip` entity is designed to be managed by the application's backend API, as indicated by `GET /api/trips/[id]?shareToken=...`. This means the backend validates the `shareToken` and then fetches the trip from Firestore (potentially using service account credentials or an elevated user context). Consequently, Firestore security rules for the `Trip` documents do not need to implement complex logic for public sharing, further simplifying them to primarily enforce user ownership. If direct client-to-Firestore public access via `shareToken` were required, a dedicated top-level `public_trips` collection would be considered, but it's not necessary given the API mediation.\n\n**DBAC and App Settings:** While the core principles advocate for dedicated collections for global roles (e.g., `_roles_admin/{userId}`) and app settings, these have been omitted from the `firestorePaths` array. This is due to the strict schema requirement that `definition.schema.$ref` must refer to an existing entity in `#/backend/entities/<EntityName>`. No `AdminRole` or `AppSetting` entities were provided in the input, preventing their inclusion under the specified output format constraints."
   }
 }
-    
-    
