@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe, Paperclip, FileText } from "lucide-react";
+import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe, Paperclip, FileText, PlusCircle } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
@@ -103,28 +103,35 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
                     </Tooltip>
                 </TooltipProvider>
               )}
-              {hasAttachments && (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
-                            <Paperclip className="h-4 w-4" />
-                            <span className="sr-only">Pièces jointes</span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuLabel>Pièces jointes</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {event.attachments?.map((att) => (
-                            <DropdownMenuItem key={att.id} asChild>
-                                <a href="#" onClick={(e) => e.preventDefault()} className="cursor-pointer">
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    <span>{att.filename}</span>
-                                </a>
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
+                          <Paperclip className="h-4 w-4" />
+                          <span className="sr-only">Pièces jointes</span>
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                      <DropdownMenuLabel>Pièces jointes</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {hasAttachments ? (
+                          event.attachments?.map((att) => (
+                              <DropdownMenuItem key={att.id} asChild>
+                                  <a href="#" onClick={(e) => e.preventDefault()} className="cursor-pointer">
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      <span>{att.filename}</span>
+                                  </a>
+                              </DropdownMenuItem>
+                          ))
+                      ) : (
+                          <DropdownMenuItem disabled>Aucune pièce jointe</DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem>
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          <span>Ajouter une pièce jointe</span>
+                      </DropdownMenuItem>
+                  </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             {event.isAiEnriched && (
               <Badge variant="outline" className="text-primary border-primary/50 text-xs h-fit">
