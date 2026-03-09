@@ -21,7 +21,7 @@ You are an expert travel planner AI. Your task is to generate a detailed day-by-
 **Instructions:**
 1.  Create a plausible and engaging itinerary for the entire duration of the trip. **All text content (titles, descriptions) MUST be in French.**
 2.  Each day should have a series of events (activities, meals, transport, etc.).
-3.  For each event, provide a type, title, start time, and other relevant details like location.
+3.  For each event, provide a type, title, start time, and other relevant details like location. The event \`type\` MUST be one of the following exact strings: 'visit', 'meal', 'transport', 'accommodation', 'activity'.
 4.  The final output MUST be ONLY a raw JSON object. Do not include markdown backticks or any other text outside of the JSON. **CRITICAL**: Ensure the JSON is valid. All strings containing double quotes must have them escaped with a backslash (e.g., "description": "Une description \\"avec\\" des guillemets.").
 
 **JSON Output Schema:**

@@ -26,8 +26,9 @@ ${input.existingEvents.length > 0 ? input.existingEvents.map(e => `- (id: ${e.id
 2.  **Add new, complementary events.** Based on the traveler preferences, add new activities, meals, or transport suggestions to fill the gaps in the day. Make the day feel full and well-paced.
 3.  **Preserve existing events.** Your final output MUST include all the "Existing Events" without modification. When you include an existing event, you MUST include its original \`id\` in the output object for that event. For newly generated events, do not include an \`id\` field.
 4.  **Order all events.** Arrange the final list of events (both existing and newly generated) in a logical chronological order.
-5.  **Provide all text in French.** All titles and descriptions must be in French.
-6.  **Format the output as a valid JSON object.** Your entire response must be ONLY a raw JSON object. Do not include markdown backticks or any other text outside of the JSON. **CRITICAL**: Ensure the JSON is valid. All strings containing double quotes must have them escaped with a backslash (e.g., "description": "Une description \\"avec\\" des guillemets.").
+5.  **Constrain Event Types.** The \`type\` for each event MUST be one of the following exact strings: 'visit', 'meal', 'transport', 'accommodation', 'activity'.
+6.  **Provide all text in French.** All titles and descriptions must be in French.
+7.  **Format the output as a valid JSON object.** Your entire response must be ONLY a raw JSON object. Do not include markdown backticks or any other text outside of the JSON. **CRITICAL**: Ensure the JSON is valid. All strings containing double quotes must have them escaped with a backslash (e.g., "description": "Une description \\"avec\\" des guillemets.").
 
 **JSON Output Schema:**
 The output must be a JSON object with a single "events" key, containing an array of event objects for the completed day.
