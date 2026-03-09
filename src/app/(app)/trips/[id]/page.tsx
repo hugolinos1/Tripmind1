@@ -601,6 +601,12 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                             ) : dayEvents.length > 0 ? (
                                dayEvents.map((event, index) => (
                                  <React.Fragment key={event.id}>
+                                    {index === 0 && startLocation && (
+                                        <TransportSuggestionCard 
+                                            startEvent={{ title: 'Lieu de départ', locationName: startLocation }}
+                                            endEvent={event}
+                                        />
+                                    )}
                                     <EventCard 
                                       event={event} 
                                       onEnrich={handleEnrichEvent} 
@@ -610,11 +616,18 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                       isFirst={index === 0}
                                       isLast={index === dayEvents.length - 1}
                                     />
-                                    {index < dayEvents.length - 1 && (
+                                    {index < dayEvents.length - 1 ? (
                                         <TransportSuggestionCard 
                                             startEvent={event}
                                             endEvent={dayEvents[index + 1]}
                                         />
+                                    ) : (
+                                        endLocation && (
+                                            <TransportSuggestionCard 
+                                                startEvent={event}
+                                                endEvent={{ title: "Lieu d'arrivée", locationName: endLocation }}
+                                            />
+                                        )
                                     )}
                                  </React.Fragment>
                                ))
@@ -741,3 +754,5 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
