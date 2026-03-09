@@ -69,7 +69,6 @@ export type GenerateItineraryInput = z.infer<typeof GenerateItineraryInputSchema
 const generateItineraryPrompt = ai.definePrompt({
   name: 'generateItineraryPrompt',
   input: { schema: GenerateItineraryInputSchema },
-  model: 'googleai/gemini-1.0-pro',
   config: {
     temperature: 0.7,
   },
