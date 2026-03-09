@@ -26,6 +26,7 @@ const testConnectivityFlow = ai.defineFlow(
   async (prompt) => {
     const llmResponse = await ai.generate({
       prompt: `This is a connectivity test. Please respond with a short, simple, polite confirmation message in French confirming you received the following message. Your response should only contain that confirmation. The message is: "${prompt}"`,
+      model: 'gemini-pro', // Explicitly use the reliable model for the test.
     });
     return llmResponse.text;
   }
