@@ -48,6 +48,7 @@ interface EventCardProps {
     onMoveUp: () => void;
     onMoveDown: () => void;
     onGeocode: (eventId: string) => void;
+    onDelete: (eventId: string) => void;
     isFirst: boolean;
     isLast: boolean;
     isGeocoding: boolean;
@@ -61,7 +62,7 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onGeocode, isFirst, isLast, isGeocoding }: EventCardProps) => {
+const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onGeocode, onDelete, isFirst, isLast, isGeocoding }: EventCardProps) => {
   const [isEnriching, setIsEnriching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const config = eventTypeConfig[event.type] || eventTypeConfig.activity;
@@ -240,7 +241,7 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onG
                         <Edit className="mr-2 h-4 w-4" />
                         Modifier
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive focus:text-destructive">
+                    <DropdownMenuItem onClick={() => onDelete(event.id)} className="text-destructive focus:text-destructive cursor-pointer">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Supprimer
                     </DropdownMenuItem>

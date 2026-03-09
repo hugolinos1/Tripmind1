@@ -33,7 +33,7 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@
 import { doc, collection, query, orderBy, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 
@@ -599,6 +599,25 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleDeleteEvent = (eventId: string) => {
+    if (!user || !firestore || !selectedDay) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de supprimer l'événement.",
+      });
+      return;
+    }
+    
+    const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
+    deleteDocumentNonBlocking(eventRef);
+    
+    toast({
+      title: "Événement supprimé",
+      description: "L'événement a été retiré de votre itinéraire.",
+    });
+  };
+
 
   const isLoading = isTripLoading || isDaysLoading;
 
@@ -835,6 +854,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                       onMoveUp={() => handleMoveEvent(event.id, 'up')}
                                       onMoveDown={() => handleMoveEvent(event.id, 'down')}
                                       onGeocode={handleGeocodeEvent}
+                                      onDelete={handleDeleteEvent}
                                       isFirst={index === 0}
                                       isLast={index === dayEvents.length - 1}
                                       isGeocoding={isGeocoding === event.id}
