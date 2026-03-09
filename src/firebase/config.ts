@@ -1,8 +1,15 @@
 export const firebaseConfig = {
-  "projectId": "studio-8930125250-d5b7e",
-  "appId": "1:504325434909:web:584f3c50cdbbc4a3a0e0f4",
-  "apiKey": "AIzaSyBFLfQVEH910mr_1QmIgPqufFQkYlaRBbc",
-  "authDomain": "studio-8930125250-d5b7e.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "504325434909"
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  measurementId: "",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
 };
+
+// A simple check to see if the environment variables are loaded correctly, especially for client components.
+if (typeof window !== 'undefined' && !firebaseConfig.projectId) {
+    console.warn(
+      "Firebase config is not loaded. Make sure you have a .env file with the necessary NEXT_PUBLIC_FIREBASE_ variables."
+    );
+}
