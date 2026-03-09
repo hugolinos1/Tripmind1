@@ -22,7 +22,7 @@ You are an expert travel planner AI. Your task is to generate a detailed day-by-
 1.  Create a plausible and engaging itinerary for the entire duration of the trip. **All text content (titles, descriptions) MUST be in French.**
 2.  Each day should have a series of events (activities, meals, transport, etc.).
 3.  For each event, provide a type, title, start time, and other relevant details like location.
-4.  The final output MUST be a valid JSON object with a single key "itinerary" that contains an array of day objects. Do not include any text, markdown, or explanations outside of the JSON structure.
+4.  The final output MUST be ONLY the raw JSON object, starting with { and ending with }. Do not include markdown backticks like \`\`\`json or any other text.
 
 **JSON Output Schema:**
 The output must be a JSON object with the following structure:
@@ -89,7 +89,14 @@ export async function generateTripItinerary(input: GenerateItineraryInput): Prom
 
         let jsonData: any;
         try {
-            jsonData = JSON.parse(message);
+            // Models can sometimes wrap the JSON in markdown, so we extract it.
+            const jsonStart = message.indexOf('{');
+            const jsonEnd = message.lastIndexOf('}');
+            if (jsonStart === -1 || jsonEnd === -1) {
+                throw new Error("Aucun objet JSON trouvé dans la réponse de l'IA.");
+            }
+            const jsonString = message.substring(jsonStart, jsonEnd + 1);
+            jsonData = JSON.parse(jsonString);
         } catch (e) {
             console.error("Could not parse JSON from response:", message);
             throw new Error("La réponse de l'IA n'a pas pu être analysée comme un JSON valide.");

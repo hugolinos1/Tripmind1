@@ -22,7 +22,7 @@ ${input.description ? `- **Current Description:** ${input.description}` : ''}
 **Instructions:**
 1.  **Rewrite and expand the description.** Make it more engaging, inspiring, and useful for a traveler. Provide context and what to expect. The language must be French.
 2.  **Find practical information.** Research and provide details like opening hours, prices, and insider tips. For fields where no information can be found, return an empty string.
-3.  **Format the output as a valid JSON object.** Do not include any text, markdown, or explanations outside of the JSON structure.
+3.  **Format the output as a valid JSON object.** Your entire response must be ONLY the raw JSON object, starting with { and ending with }. Do not include markdown backticks like \`\`\`json or any explanatory text.
 
 **JSON Output Schema:**
 The output must be a JSON object that strictly follows this Zod schema:
@@ -77,7 +77,14 @@ export async function enrichEventDetails(input: EnrichEventInput): Promise<Enric
         
         let jsonData: any;
         try {
-            jsonData = JSON.parse(message);
+            // Models can sometimes wrap the JSON in markdown, so we extract it.
+            const jsonStart = message.indexOf('{');
+            const jsonEnd = message.lastIndexOf('}');
+            if (jsonStart === -1 || jsonEnd === -1) {
+                throw new Error("Aucun objet JSON trouvé dans la réponse de l'IA.");
+            }
+            const jsonString = message.substring(jsonStart, jsonEnd + 1);
+            jsonData = JSON.parse(jsonString);
         } catch (e) {
             console.error("Could not parse JSON from response:", message);
             throw new Error("La réponse de l'IA n'a pas pu être analysée comme un JSON valide.");
