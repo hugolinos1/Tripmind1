@@ -15,6 +15,7 @@ export interface Attachment {
   id: string;
   filename: string;
   category: 'ticket' | 'voucher' | 'reservation' | 'other';
+  url?: string;
 }
 
 // Adding description and practicalInfo to the event type for the card
@@ -81,6 +82,7 @@ const EventCard = ({ event, onEnrich, onAddAttachment }: EventCardProps) => {
               id: `attach-${Date.now()}-${Math.random()}`, // simple unique id
               filename: file.name,
               category: 'other', // default category
+              url: URL.createObjectURL(file),
           };
           onAddAttachment(event.id, newAttachment);
       }
@@ -139,7 +141,7 @@ const EventCard = ({ event, onEnrich, onAddAttachment }: EventCardProps) => {
                       {hasAttachments ? (
                           event.attachments?.map((att) => (
                               <DropdownMenuItem key={att.id} asChild>
-                                  <a href="#" onClick={(e) => e.preventDefault()} className="cursor-pointer">
+                                  <a href={att.url} target="_blank" rel="noopener noreferrer" className="cursor-pointer">
                                       <FileText className="mr-2 h-4 w-4" />
                                       <span>{att.filename}</span>
                                   </a>

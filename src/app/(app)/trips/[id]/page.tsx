@@ -41,7 +41,7 @@ const initialTrip = {
     date: new Date(new Date("2024-08-15").setDate(new Date("2024-08-15").getDate() + i)),
     orderIndex: i,
     events: i === 0 ? [
-        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Shinjuku, Tokyo", isAiEnriched: true, lat: 35.695, lng: 139.700, description: "Arrivée et installation à l'hôtel.", attachments: [{ id: 'attach1', filename: 'Réservation Hotel.pdf', category: 'reservation' as const }] },
+        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Shinjuku, Tokyo", isAiEnriched: true, lat: 35.695, lng: 139.700, description: "Arrivée et installation à l'hôtel.", attachments: [{ id: 'attach1', filename: 'Réservation Hotel.pdf', category: 'reservation' as const, url: '#' }] },
         { id: "e2", type: "visit" as const, title: "Exploration de Shinjuku Gyoen", startTime: "16:30", durationMinutes: 120, locationName: "Shinjuku Gyoen National Garden", isAiEnriched: false, lat: 35.685, lng: 139.710, description: "Première découverte de la ville avec une balade dans ce magnifique parc." },
         { id: "e3", type: "meal" as const, title: "Dîner Ramen à Ichiran", startTime: "19:00", durationMinutes: 75, locationName: "Ichiran Shinjuku Central East Exit", isAiEnriched: true, lat: 35.691, lng: 139.704, description: "Dégustation de ramens authentiques." },
       ] : [],
