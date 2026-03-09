@@ -1,10 +1,13 @@
+'use client';
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2 } from "lucide-react";
+import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useState } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
 
@@ -47,11 +50,14 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
   
   const handleEnrich = async () => {
     setIsEnriching(true);
-    // The parent's onEnrich function handles toasts and errors.
-    // We just need to ensure the loading state is reset.
-    onEnrich(event.id).finally(() => {
+    try {
+        await onEnrich(event.id);
+    } catch (error) {
+        // Error is handled by parent (toast), just log it here for debugging
+        console.error("Enrichment failed in EventCard:", error);
+    } finally {
         setIsEnriching(false);
-    });
+    }
   };
 
   const hasPracticalInfo = event.practicalInfo && (event.practicalInfo.openingHours || event.practicalInfo.price || event.practicalInfo.tips);
@@ -102,10 +108,21 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
                 <span>{event.locationName}</span>
               </div>
             )}
-            {event.description && (
-                <p className="pt-1 text-slate-300">{event.description}</p>
-            )}
           </div>
+          
+          {event.description && (
+            <Collapsible className="pl-6 pt-2">
+              <CollapsibleTrigger asChild>
+                  <button className="text-sm text-slate-400 hover:text-white flex items-center gap-1 data-[state=open]:text-white">
+                      Voir les détails
+                      <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                  </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                  <p className="text-slate-300 text-sm leading-relaxed">{event.description}</p>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </div>
 
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
