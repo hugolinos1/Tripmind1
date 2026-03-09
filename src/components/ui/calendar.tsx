@@ -2,94 +2,12 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker, CaptionProps, useNavigation, useDayPicker } from "react-day-picker"
+import { DayPicker } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
-import { buttonVariants, Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
-
-function CustomCaption({ displayMonth }: CaptionProps) {
-  const { goToMonth, previousMonth, nextMonth } = useNavigation()
-  const { fromYear, toYear } = useDayPicker()
-
-  const handleYearChange = (value: string) => {
-    const newDate = new Date(displayMonth)
-    newDate.setFullYear(parseInt(value, 10))
-    goToMonth(newDate)
-  }
-
-  const handleMonthChange = (value: string) => {
-    const newDate = new Date(displayMonth)
-    newDate.setMonth(parseInt(value, 10))
-    goToMonth(newDate)
-  }
-
-  const years = Array.from(
-    { length: (toYear || new Date().getFullYear()) - (fromYear || 1900) + 1 },
-    (_, i) => (fromYear || 1900) + i
-  )
-
-  return (
-    <div className="flex items-center justify-between w-full px-1">
-      <Button
-        variant="outline"
-        className="h-7 w-7 bg-transparent p-0 text-foreground opacity-80 hover:opacity-100"
-        onClick={() => previousMonth && goToMonth(previousMonth)}
-        disabled={!previousMonth}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <div className="flex items-center gap-2">
-        <Select
-          value={String(displayMonth.getMonth())}
-          onValueChange={handleMonthChange}
-        >
-          <SelectTrigger className="w-auto bg-transparent border-none focus:ring-0 font-medium text-foreground">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <SelectItem key={i} value={String(i)}>
-                {new Date(2024, i).toLocaleString("fr", { month: "long" })}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={String(displayMonth.getFullYear())}
-          onValueChange={handleYearChange}
-        >
-          <SelectTrigger className="w-auto bg-transparent border-none focus:ring-0 font-medium text-foreground">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((year) => (
-              <SelectItem key={year} value={String(year)}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <Button
-        variant="outline"
-        className="h-7 w-7 bg-transparent p-0 text-foreground opacity-80 hover:opacity-100"
-        onClick={() => nextMonth && goToMonth(nextMonth)}
-        disabled={!nextMonth}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  )
-}
 
 function Calendar({
   className,
@@ -105,8 +23,14 @@ function Calendar({
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "hidden", // We are using a custom caption
-        nav: "hidden", // Hide default nav as CustomCaption handles it
+        caption_label: "text-sm font-medium",
+        nav: "space-x-1 flex items-center",
+        nav_button: cn(
+          buttonVariants({ variant: "outline" }),
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+        ),
+        nav_button_previous: "absolute left-1",
+        nav_button_next: "absolute right-1",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell:
@@ -122,7 +46,7 @@ function Calendar({
           "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
         day_today: "bg-accent text-accent-foreground",
         day_outside:
-          "day-outside text-muted-foreground aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
+          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
         day_disabled: "text-muted-foreground opacity-50",
         day_range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
@@ -130,10 +54,9 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Caption: CustomCaption,
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
       }}
-      fromYear={new Date().getFullYear()}
-      toYear={new Date().getFullYear() + 10}
       {...props}
     />
   )
