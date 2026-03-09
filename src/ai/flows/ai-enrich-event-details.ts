@@ -20,9 +20,9 @@ ${input.locationName ? `- **Location:** ${input.locationName}` : ''}
 ${input.description ? `- **Current Description:** ${input.description}` : ''}
 
 **Instructions:**
-1.  **Rewrite and expand the description.** Make it more engaging, inspiring, and useful for a traveler. Provide context and what to expect. The language must be French.
+1.  **Rewrite and expand the description.** Make it more engaging, inspiring, and useful for a traveler. The language must be French.
 2.  **Find practical information.** Research and provide details like opening hours, prices, and insider tips. For fields where no information can be found, return an empty string.
-3.  **Format the output as a valid JSON object.** Your entire response must be ONLY the raw JSON object, starting with { and ending with }. Do not include markdown backticks like \`\`\`json or any explanatory text.
+3.  **Format the output as a valid JSON object.** Your entire response must be ONLY a raw JSON object. Do not include markdown backticks or any other text outside of the JSON. **CRITICAL**: Ensure the JSON is valid. All strings containing double quotes must have them escaped with a backslash (e.g., "description": "Une description \\"avec\\" des guillemets.").
 
 **JSON Output Schema:**
 The output must be a JSON object that strictly follows this Zod schema:
