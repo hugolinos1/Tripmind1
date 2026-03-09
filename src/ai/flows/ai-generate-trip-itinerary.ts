@@ -19,7 +19,7 @@ You are an expert travel planner AI. Your task is to generate a detailed day-by-
 - **Preferences:** ${JSON.stringify(input.preferences)}
 
 **Instructions:**
-1.  Create a plausible and engaging itinerary for the entire duration of the trip.
+1.  Create a plausible and engaging itinerary for the entire duration of the trip. **All text content (titles, descriptions) MUST be in French.**
 2.  Each day should have a series of events (activities, meals, transport, etc.).
 3.  For each event, provide a type, title, start time, and other relevant details like location.
 4.  The final output MUST be a valid JSON object with a single key "itinerary" that contains an array of day objects. Do not include any text, markdown, or explanations outside of the JSON structure.
@@ -35,10 +35,10 @@ The output must be a JSON object with the following structure:
       "events": [
         {
           "type": "activity",
-          "title": "Event Title",
+          "title": "Titre de l'événement en français",
           "startTime": "HH:mm",
           "durationMinutes": 60,
-          "description": "Brief description of the event.",
+          "description": "Brève description de l'événement en français.",
           "locationName": "Specific location name",
           "lat": 48.8584,
           "lng": 2.2945
