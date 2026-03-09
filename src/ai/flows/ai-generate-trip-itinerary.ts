@@ -51,6 +51,9 @@ const ItineraryDaySchema = z.object({
   events: z.array(ItineraryEventSchema).describe('List of events for the day, ordered chronologically.'),
 });
 
+const GenerateItineraryOutputSchema = z.array(ItineraryDaySchema).describe('A detailed day-by-day itinerary.');
+export type GenerateItineraryOutput = z.infer<typeof GenerateItineraryOutputSchema>;
+
 const GenerateItineraryInputSchema = z.object({
   tripId: z.string().describe('The ID of the trip.'),
   title: z.string().describe('The title of the trip.'),
@@ -62,15 +65,12 @@ const GenerateItineraryInputSchema = z.object({
 });
 export type GenerateItineraryInput = z.infer<typeof GenerateItineraryInputSchema>;
 
-const GenerateItineraryOutputSchema = z.array(ItineraryDaySchema).describe('A detailed day-by-day itinerary.');
-export type GenerateItineraryOutput = z.infer<typeof GenerateItineraryOutputSchema>;
-
 
 const generateItineraryPrompt = ai.definePrompt({
   name: 'generateItineraryPrompt',
   input: { schema: GenerateItineraryInputSchema },
   output: { schema: GenerateItineraryOutputSchema },
-  model: 'googleai/gemini-1.5-flash-latest',
+  model: 'googleai/gemini-pro',
   config: {
     temperature: 0.7,
   },
