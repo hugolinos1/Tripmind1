@@ -7,7 +7,7 @@ import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit } from 'lucide-react';
 import Link from 'next/link';
 import EventCard, { type Event as EventType, type Attachment } from '@/components/app/event-card';
 import { TransportSuggestionCard } from '@/components/app/transport-suggestion-card';
@@ -52,7 +52,7 @@ const initialTrip = {
 const LOCAL_STORAGE_KEY_PREFIX = 'trip_';
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
-  const [trip, setTrip] = useState(initialTrip);
+  const [trip, setTrip] = useState({...initialTrip, id: params.id });
   const [selectedDay, setSelectedDay] = useState(0);
   const [isGenerating, setIsGenerating] = useState<'full' | 'day' | false>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -235,9 +235,15 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </div>
           <div className="flex flex-col items-end">
             <div className="flex items-center gap-2">
+                <Button variant="outline" asChild>
+                  <Link href={`/trips/${trip.id}/edit`}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Modifier
+                  </Link>
+                </Button>
                 <Button variant="outline">
-                <Share2 className="mr-2 h-4 w-4" />
-                Partager
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Partager
                 </Button>
                 <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
                 {isGenerating === 'full' ? (
