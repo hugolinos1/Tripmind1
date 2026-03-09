@@ -206,7 +206,7 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onG
           )}
         </div>
 
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
