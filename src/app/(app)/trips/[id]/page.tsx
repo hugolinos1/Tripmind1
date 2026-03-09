@@ -8,16 +8,26 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2 } from 'lucide-react';
 import Link from 'next/link';
-import EventCard from '@/components/app/event-card';
+import EventCard, { type Event as EventType } from '@/components/app/event-card'; // Import Event type from card
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { generateTripItinerary, type GenerateItineraryInput } from '@/ai/flows/ai-generate-trip-itinerary';
+import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
+import { useToast } from '@/hooks/use-toast';
 
 const MapView = dynamic(() => import('../../../../components/app/map-view'), {
   ssr: false,
   loading: () => <div className="bg-slate-800 animate-pulse w-full h-full" />,
 });
+
+// Update day type to use the more detailed EventType from event-card
+type Day = {
+    id: string;
+    date: Date;
+    orderIndex: number;
+    events: EventType[];
+}
 
 const initialTrip = {
   id: "1",
@@ -30,11 +40,11 @@ const initialTrip = {
     date: new Date(new Date("2024-08-15").setDate(new Date("2024-08-15").getDate() + i)),
     orderIndex: i,
     events: i === 0 ? [
-        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Shinjuku, Tokyo", isAiEnriched: true, lat: 35.695, lng: 139.700, description: "Arrivée et installation à l\'hôtel." },
+        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Shinjuku, Tokyo", isAiEnriched: true, lat: 35.695, lng: 139.700, description: "Arrivée et installation à l'hôtel." },
         { id: "e2", type: "visit" as const, title: "Exploration de Shinjuku Gyoen", startTime: "16:30", durationMinutes: 120, locationName: "Shinjuku Gyoen National Garden", isAiEnriched: false, lat: 35.685, lng: 139.710, description: "Première découverte de la ville avec une balade dans ce magnifique parc." },
         { id: "e3", type: "meal" as const, title: "Dîner Ramen à Ichiran", startTime: "19:00", durationMinutes: 75, locationName: "Ichiran Shinjuku Central East Exit", isAiEnriched: true, lat: 35.691, lng: 139.704, description: "Dégustation de ramens authentiques." },
       ] : [],
-  })),
+  })) as Day[],
 };
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
@@ -42,6 +52,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [selectedDay, setSelectedDay] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const dayEvents = trip.days[selectedDay]?.events || [];
   const dayDate = trip.days[selectedDay]?.date;
@@ -93,6 +104,59 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         setGenerationError(`La génération a échoué : ${errorMessage}`);
     } finally {
         setIsGenerating(false);
+    }
+  };
+
+  const handleEnrichEvent = async (eventId: string) => {
+    let eventToEnrich: EventType | undefined;
+    
+    // Find the event across all days
+    for (const day of trip.days) {
+        eventToEnrich = day.events.find(e => e.id === eventId);
+        if (eventToEnrich) break;
+    }
+
+    if (!eventToEnrich) {
+        toast({ variant: "destructive", title: "Erreur", description: "L'événement à enrichir n'a pas été trouvé." });
+        return;
+    }
+
+    try {
+        const enrichedData = await enrichEventDetails({
+            title: eventToEnrich.title,
+            description: eventToEnrich.description,
+            locationName: eventToEnrich.locationName,
+            type: eventToEnrich.type,
+        });
+
+        // Update the trip state with the enriched data
+        setTrip(currentTrip => {
+            const newDays = currentTrip.days.map(day => ({
+                ...day,
+                events: day.events.map(event => {
+                    if (event.id === eventId) {
+                        return {
+                            ...event,
+                            description: enrichedData.description,
+                            practicalInfo: enrichedData.practicalInfo,
+                            isAiEnriched: true,
+                        };
+                    }
+                    return event;
+                }),
+            }));
+            return { ...currentTrip, days: newDays };
+        });
+        toast({ title: "Succès", description: `L'événement "${eventToEnrich.title}" a été enrichi.` });
+    } catch (error: any) {
+        console.error("Failed to enrich event:", error);
+        toast({
+            variant: "destructive",
+            title: "Échec de l'enrichissement",
+            description: error.message || "Une erreur inconnue est survenue.",
+        });
+        // Re-throw to be caught by the card's local handler if needed
+        throw error;
     }
   };
 
@@ -185,7 +249,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                     </h2>
                     <div className="space-y-4">
                         {dayEvents.length > 0 ? (
-                           dayEvents.map(event => <EventCard key={event.id} event={event} />)
+                           dayEvents.map(event => <EventCard key={event.id} event={event} onEnrich={handleEnrichEvent} />)
                         ) : (
                             <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
                                 <p className="text-slate-400">Aucun événement pour ce jour. Cliquez sur "Générer l'itinéraire" pour commencer.</p>

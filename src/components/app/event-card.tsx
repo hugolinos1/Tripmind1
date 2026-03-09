@@ -1,12 +1,15 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Edit, Home, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils } from "lucide-react";
+import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { useState } from "react";
 
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
 
-interface Event {
+// Adding description and practicalInfo to the event type for the card
+export interface Event {
   id: string;
   type: EventType;
   title: string;
@@ -14,6 +17,19 @@ interface Event {
   durationMinutes?: number;
   locationName?: string;
   isAiEnriched: boolean;
+  description?: string;
+  practicalInfo?: {
+    openingHours?: string;
+    price?: string;
+    tips?: string;
+  };
+  lat?: number;
+  lng?: number;
+}
+
+interface EventCardProps {
+    event: Event;
+    onEnrich: (eventId: string) => Promise<void>;
 }
 
 const eventTypeConfig = {
@@ -24,10 +40,25 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-const EventCard = ({ event }: { event: Event }) => {
+const EventCard = ({ event, onEnrich }: EventCardProps) => {
+  const [isEnriching, setIsEnriching] = useState(false);
   const config = eventTypeConfig[event.type] || eventTypeConfig.activity;
   const Icon = config.icon;
   
+  const handleEnrich = async () => {
+    setIsEnriching(true);
+    try {
+        await onEnrich(event.id);
+    } catch (error) {
+        console.error("Failed to enrich event", error);
+        // Optionally show a toast notification here
+    } finally {
+        setIsEnriching(false);
+    }
+  };
+
+  const hasPracticalInfo = event.practicalInfo && (event.practicalInfo.openingHours || event.practicalInfo.price || event.practicalInfo.tips);
+
   return (
     <Card className={`border-l-4 ${config.color} border-y-slate-800 border-r-slate-800 bg-slate-800/30 group hover:bg-slate-800/60 transition-colors`}>
       <CardContent className="p-4 flex gap-4 items-start">
@@ -36,6 +67,22 @@ const EventCard = ({ event }: { event: Event }) => {
             <div className="flex items-center gap-2">
               <Icon className="h-4 w-4 text-slate-400"/>
               <h3 className="font-semibold text-white">{event.title}</h3>
+              {hasPracticalInfo && (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 text-slate-400 cursor-pointer" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <div className="space-y-1 text-sm">
+                                {event.practicalInfo?.openingHours && <p><strong>Horaires:</strong> {event.practicalInfo.openingHours}</p>}
+                                {event.practicalInfo?.price && <p><strong>Prix:</strong> {event.practicalInfo.price}</p>}
+                                {event.practicalInfo?.tips && <p><strong>Conseils:</strong> {event.practicalInfo.tips}</p>}
+                            </div>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
             {event.isAiEnriched && (
               <Badge variant="outline" className="text-primary border-primary/50 text-xs h-fit">
@@ -45,8 +92,8 @@ const EventCard = ({ event }: { event: Event }) => {
             )}
           </div>
           
-          <div className="text-sm text-slate-400 mt-1 space-y-1 pl-6">
-            {event.startTime && (
+          <div className="text-sm text-slate-400 mt-1 space-y-2 pl-6">
+             {event.startTime && (
               <div className="flex items-center gap-2">
                 <Clock className="h-3.5 w-3.5" />
                 <span>{event.startTime} {event.durationMinutes ? `(${event.durationMinutes} min)` : ''}</span>
@@ -58,14 +105,24 @@ const EventCard = ({ event }: { event: Event }) => {
                 <span>{event.locationName}</span>
               </div>
             )}
+            {event.description && (
+                <p className="pt-1 text-slate-300">{event.description}</p>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
-                <Sparkles className="h-4 w-4" />
-                <span className="sr-only">Enrichir</span>
-            </Button>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary" onClick={handleEnrich} disabled={isEnriching}>
+                            {isEnriching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            <span className="sr-only">Enrichir</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Enrichir avec l'IA</TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white">

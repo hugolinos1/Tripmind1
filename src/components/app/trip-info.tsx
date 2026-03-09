@@ -1,7 +1,14 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { BookText, ChefHat, Handshake, Landmark, RefreshCw, Train, Umbrella, Siren, Wallet, Ban, Search, Sprout } from "lucide-react";
+import { BookText, ChefHat, Handshake, Landmark, RefreshCw, Train, Umbrella, Siren, Wallet, Ban, Search, Sprout, Loader2, Terminal } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
+import { useState, useEffect, useCallback } from "react";
+import { getDestinationInsights } from "@/ai/flows/ai-get-destination-insights";
+import ReactMarkdown from 'react-markdown';
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+
 
 interface TripInfoProps {
   destinations: string[];
@@ -35,6 +42,8 @@ const TripInfo = ({ destinations }: TripInfoProps) => {
                 key={section.id} 
                 title={section.label}
                 icon={<section.icon className="h-6 w-6" />}
+                sectionId={section.id}
+                destinations={destinations}
             />
         ))}
       </div>
@@ -45,9 +54,36 @@ const TripInfo = ({ destinations }: TripInfoProps) => {
 interface InfoCardProps {
     title: string;
     icon: React.ReactNode;
+    sectionId: string;
+    destinations: string[];
 }
 
-const InfoCard = ({ title, icon }: InfoCardProps) => {
+const InfoCard = ({ title, icon, sectionId, destinations }: InfoCardProps) => {
+    const [content, setContent] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchContent = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const result = await getDestinationInsights({
+                destinations,
+                sectionId,
+                sectionLabel: title,
+            });
+            setContent(result.content);
+        } catch (e: any) {
+            setError(e.message || "Une erreur est survenue.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [destinations, sectionId, title]);
+
+    useEffect(() => {
+        fetchContent();
+    }, [fetchContent]);
+
     return (
         <Card className="border-slate-800 bg-slate-800/30 flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -55,17 +91,26 @@ const InfoCard = ({ title, icon }: InfoCardProps) => {
                     <div className="text-primary">{icon}</div>
                     <CardTitle className="text-lg font-headline">{title}</CardTitle>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
-                    <RefreshCw className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary" onClick={fetchContent} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 </Button>
             </CardHeader>
-            <CardContent className="flex-grow">
-                {/* Example of loading state */}
-                <div className="space-y-2 mt-2">
-                    <Skeleton className="h-4 w-4/5 bg-slate-700" />
-                    <Skeleton className="h-4 w-full bg-slate-700" />
-                    <Skeleton className="h-4 w-2/3 bg-slate-700" />
-                </div>
+            <CardContent className="flex-grow prose prose-sm prose-invert max-w-none prose-p:text-slate-300 prose-ul:text-slate-300 prose-strong:text-white">
+                {isLoading && (
+                    <div className="space-y-2 mt-2">
+                        <Skeleton className="h-4 w-4/5 bg-slate-700" />
+                        <Skeleton className="h-4 w-full bg-slate-700" />
+                        <Skeleton className="h-4 w-2/3 bg-slate-700" />
+                    </div>
+                )}
+                {error && !isLoading && (
+                     <Alert variant="destructive" className="mt-2">
+                        <Terminal className="h-4 w-4" />
+                        <AlertTitle>Erreur</AlertTitle>
+                        <AlertDescription className="text-xs">{error}</AlertDescription>
+                    </Alert>
+                )}
+                {content && !isLoading && <ReactMarkdown className="[&_p]:my-2 [&_ul]:my-2">{content}</ReactMarkdown>}
             </CardContent>
         </Card>
     );
