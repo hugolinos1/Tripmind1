@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import React from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import EventCard, { type Event as EventType, type Attachment } from '@/components/app/event-card'; // Import Event type from card
+import EventCard, { type Event as EventType, type Attachment } from '@/components/app/event-card';
+import { TransportSuggestionCard } from '@/components/app/transport-suggestion-card';
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -22,7 +24,6 @@ const MapView = dynamic(() => import('../../../../components/app/map-view'), {
   loading: () => <div className="bg-slate-800 animate-pulse w-full h-full" />,
 });
 
-// Update day type to use the more detailed EventType from event-card
 type Day = {
     id: string;
     date: Date;
@@ -41,12 +42,14 @@ const initialTrip = {
     date: new Date(new Date("2024-08-15").setDate(new Date("2024-08-15").getDate() + i)),
     orderIndex: i,
     events: i === 0 ? [
-        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Shinjuku, Tokyo", isAiEnriched: true, lat: 35.695, lng: 139.700, description: "Arrivée et installation à l'hôtel.", attachments: [{ id: 'attach1', filename: 'Réservation Hotel.pdf', category: 'reservation' as const, url: '#' }] },
-        { id: "e2", type: "visit" as const, title: "Exploration de Shinjuku Gyoen", startTime: "16:30", durationMinutes: 120, locationName: "Shinjuku Gyoen National Garden", isAiEnriched: false, lat: 35.685, lng: 139.710, description: "Première découverte de la ville avec une balade dans ce magnifique parc." },
-        { id: "e3", type: "meal" as const, title: "Dîner Ramen à Ichiran", startTime: "19:00", durationMinutes: 75, locationName: "Ichiran Shinjuku Central East Exit", isAiEnriched: true, lat: 35.691, lng: 139.704, description: "Dégustation de ramens authentiques." },
+        { id: "e1", type: "accommodation" as const, title: "Check-in Hotel Gracery Shinjuku", startTime: "15:00", durationMinutes: 60, locationName: "Hotel Gracery Shinjuku, 1 Chome-19-1 Kabukicho, Shinjuku City, Tokyo 160-8466", isAiEnriched: true, lat: 35.6963, lng: 139.7006, description: "Arrivée et installation à l'hôtel célèbre pour sa tête de Godzilla.", attachments: [{ id: 'attach1', filename: 'Réservation Hotel.pdf', category: 'reservation' as const, url: '#' }] },
+        { id: "e2", type: "visit" as const, title: "Exploration de Shinjuku Gyoen", startTime: "16:30", durationMinutes: 120, locationName: "Shinjuku Gyoen National Garden, 11 Naitomachi, Shinjuku City, Tokyo 160-0014", isAiEnriched: false, lat: 35.6852, lng: 139.711, description: "Première découverte de la ville avec une balade dans ce magnifique parc impérial." },
+        { id: "e3", type: "meal" as const, title: "Dîner Ramen à Ichiran", startTime: "19:00", durationMinutes: 75, locationName: "Ichiran Shinjuku Central East Exit, 3 Chome-34-11 Shinjuku, Shinjuku City, Tokyo 160-0022", isAiEnriched: true, lat: 35.6909, lng: 139.7034, description: "Dégustation de ramens authentiques dans des box individuels pour une expérience immersive." },
       ] : [],
   })) as Day[],
 };
+
+const LOCAL_STORAGE_KEY_PREFIX = 'trip_';
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [trip, setTrip] = useState(initialTrip);
@@ -296,7 +299,17 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                     </h2>
                     <div className="space-y-4">
                         {dayEvents.length > 0 ? (
-                           dayEvents.map(event => <EventCard key={event.id} event={event} onEnrich={handleEnrichEvent} onAddAttachment={handleAddAttachment} />)
+                           dayEvents.map((event, index) => (
+                             <React.Fragment key={event.id}>
+                                <EventCard event={event} onEnrich={handleEnrichEvent} onAddAttachment={handleAddAttachment} />
+                                {index < dayEvents.length - 1 && (
+                                    <TransportSuggestionCard 
+                                        startEvent={event}
+                                        endEvent={dayEvents[index + 1]}
+                                    />
+                                )}
+                             </React.Fragment>
+                           ))
                         ) : (
                             <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
                                 <p className="text-slate-400">Aucun événement pour ce jour.</p>

@@ -62,3 +62,33 @@ export interface GetDestinationInsightsInput {
 export interface GetDestinationInsightsOutput {
   content: string; // Markdown formatted content
 }
+
+// For ai-get-transport-suggestions.ts
+export const TransportSuggestionInputSchema = z.object({
+  startEvent: z.object({
+    title: z.string(),
+    locationName: z.string().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+  }),
+  endEvent: z.object({
+    title: z.string(),
+    locationName: z.string().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+  }),
+});
+export type TransportSuggestionInput = z.infer<typeof TransportSuggestionInputSchema>;
+
+export const TransportSuggestionSchema = z.object({
+  mode: z.enum(['walking', 'public_transport', 'taxi', 'bike_sharing', 'other']).describe("Mode of transport."),
+  durationMinutes: z.number().describe("Estimated travel time in minutes."),
+  cost: z.string().describe("Estimated cost, e.g., 'Gratuit', '€2.15', '€15-20'."),
+  description: z.string().describe("Brief description in French, including ease of use and tips."),
+  isEcoFriendly: z.boolean().optional().describe("Whether this option is environmentally friendly."),
+});
+
+export const TransportSuggestionOutputSchema = z.object({
+  suggestions: z.array(TransportSuggestionSchema),
+});
+export type TransportSuggestionOutput = z.infer<typeof TransportSuggestionOutputSchema>;
