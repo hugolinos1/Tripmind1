@@ -23,6 +23,7 @@ import { doc, collection, query, orderBy, serverTimestamp, writeBatch } from 'fi
 import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 
 const MapView = dynamic(() => import('../../../../components/app/map-view'), {
   ssr: false,
@@ -337,28 +338,41 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
               <>
                 {/* Day Selector */}
                 <div className="w-full border-b border-slate-800">
-                  <div className="container mx-auto px-6">
-                  <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
-                    {days.map((day, index) => {
-                      const date = day.date?.seconds ? new Date(day.date.seconds * 1000) : null;
-                      return (
-                        <Button
-                          key={day.id}
-                          variant={selectedDayIndex === index ? 'secondary' : 'ghost'}
-                          className={`flex-shrink-0 ${selectedDayIndex === index ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-                          onClick={() => setSelectedDayIndex(index)}
-                        >
-                          Jour {day.orderIndex + 1}
-                          {date && (
-                            <span className="ml-2 text-xs opacity-70">
-                              {format(date, 'd MMM', { locale: fr })}
-                            </span>
-                          )}
-                        </Button>
-                      )
-                    })}
-                  </div>
-                  </div>
+                    <div className="container mx-auto px-6">
+                        <div className="relative py-2">
+                            <Carousel
+                                opts={{
+                                    align: "start",
+                                    dragFree: true,
+                                }}
+                                className="mx-8"
+                            >
+                                <CarouselContent className="-ml-2">
+                                    {days.map((day, index) => {
+                                        const date = day.date?.seconds ? new Date(day.date.seconds * 1000) : null;
+                                        return (
+                                            <CarouselItem key={day.id} className="basis-auto pl-2">
+                                                <Button
+                                                    variant={selectedDayIndex === index ? 'secondary' : 'ghost'}
+                                                    className={`flex-shrink-0 ${selectedDayIndex === index ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                                                    onClick={() => setSelectedDayIndex(index)}
+                                                >
+                                                    Jour {day.orderIndex + 1}
+                                                    {date && (
+                                                        <span className="ml-2 text-xs opacity-70">
+                                                            {format(date, 'd MMM', { locale: fr })}
+                                                        </span>
+                                                    )}
+                                                </Button>
+                                            </CarouselItem>
+                                        )
+                                    })}
+                                </CarouselContent>
+                                <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden" />
+                                <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden" />
+                            </Carousel>
+                        </div>
+                    </div>
                 </div>
                 
                 <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 overflow-hidden">
