@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { BookText, ChefHat, Handshake, Landmark, RefreshCw, Train, Umbrella, Siren, Wallet, Ban, Search, Sprout, Loader2, Terminal, Sparkles, ChevronDown } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { getDestinationInsights } from "@/ai/flows/ai-get-destination-insights";
 import ReactMarkdown from 'react-markdown';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
@@ -64,22 +64,6 @@ const InfoCard = ({ title, icon, sectionId, destinations }: InfoCardProps) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const [isClient, setIsClient] = useState(false);
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    const storageKey = `trip-info-${destinations.join('-')}-${sectionId}`;
-
-    useEffect(() => {
-        if (isClient) {
-            const savedContent = localStorage.getItem(storageKey);
-            if (savedContent) {
-                setContent(savedContent);
-            }
-        }
-    }, [isClient, storageKey]);
-
     const fetchContent = useCallback(async () => {
         setIsLoading(true);
         setError(null);
@@ -90,16 +74,13 @@ const InfoCard = ({ title, icon, sectionId, destinations }: InfoCardProps) => {
                 sectionLabel: title,
             });
             setContent(result.content);
-            if (isClient) {
-                localStorage.setItem(storageKey, result.content);
-            }
         } catch (e: any) {
             setError(e.message || "Une erreur est survenue.");
             setContent(null); // Clear content on error
         } finally {
             setIsLoading(false);
         }
-    }, [destinations, sectionId, title, isClient, storageKey]);
+    }, [destinations, sectionId, title]);
 
     return (
         <Card className="border-slate-800 bg-slate-800/30 flex flex-col">

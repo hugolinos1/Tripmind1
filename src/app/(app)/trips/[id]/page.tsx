@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
@@ -54,42 +54,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const { toast } = useToast();
-
-  const [isClient, setIsClient] = useState(false);
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const storageKey = `trip-${params.id}`;
-
-  // Load trip data from localStorage on component mount
-  useEffect(() => {
-    if (isClient) {
-      const savedTripJson = localStorage.getItem(storageKey);
-      if (savedTripJson) {
-        try {
-          const savedTrip = JSON.parse(savedTripJson);
-          // Dates are stored as strings in JSON, so we need to convert them back to Date objects
-          savedTrip.days = savedTrip.days.map((day: any) => ({
-            ...day,
-            date: new Date(day.date),
-          }));
-          setTrip(savedTrip);
-        } catch (e) {
-          console.error("Failed to parse trip data from localStorage", e);
-          // If parsing fails, stick with initialTrip
-        }
-      }
-    }
-  }, [isClient, storageKey]);
-
-  // Save trip data to localStorage whenever it changes
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem(storageKey, JSON.stringify(trip));
-    }
-  }, [isClient, trip, storageKey]);
-
 
   const dayEvents = trip.days[selectedDay]?.events || [];
   const dayDate = trip.days[selectedDay]?.date;
@@ -310,5 +274,3 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    
