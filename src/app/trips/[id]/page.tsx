@@ -31,12 +31,14 @@ import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
 import { geocodeLocation } from '@/ai/flows/ai-geocode-location';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, collection, query, orderBy, serverTimestamp, writeBatch, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+
 
 const MapView = dynamic(() => import('@/components/app/map-view'), {
   ssr: false,
@@ -75,6 +77,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const tripId = params.id as string;
+  const isMobile = useIsMobile();
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState<'full' | 'day' | 'completing' | false>(false);
@@ -655,7 +658,9 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     const batch = writeBatch(firestore);
     
     const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
-    batch.delete(eventRef);
+    
+    // Use the non-blocking delete function which will handle its own errors
+    deleteDoc(eventRef).catch(err => console.error("Non-blocking delete failed", err));
 
     // Re-order subsequent events
     const eventsToUpdate = events
@@ -674,11 +679,11 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             description: "L'itinéraire a été mis à jour.",
         });
     } catch(error) {
-        console.error("Error deleting event and reordering:", error);
+        console.error("Error reordering after delete:", error);
         toast({
             variant: "destructive",
-            title: "Erreur de suppression",
-            description: "Impossible de mettre à jour l'itinéraire. Veuillez réessayer.",
+            title: "Erreur de mise à jour",
+            description: "Impossible de réorganiser l'itinéraire. Veuillez rafraîchir.",
         });
     }
   };
@@ -778,44 +783,45 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             </TabsList>
           </div>
 
-          <TabsContent value="itinerary" className="flex-grow flex flex-col lg:overflow-hidden bg-slate-900/50">
+          <TabsContent value="itinerary" className="flex-grow flex flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1 lg:overflow-hidden bg-slate-900/50">
             {days && days.length > 0 ? (
               <>
-                {/* Day Selector */}
-                <div className="w-full border-b border-slate-800">
-                    <div className="container mx-auto px-6">
-                        <div className="relative py-2">
-                            <Carousel
-                                opts={{
-                                    align: "start",
-                                    dragFree: true,
-                                }}
-                                className="mx-8"
-                            >
-                                <CarouselContent className="-ml-2">
-                                    {days.map((day, index) => {
-                                        return (
-                                            <CarouselItem key={day.id} className="basis-auto pl-2">
-                                                <Button
-                                                    variant={selectedDayIndex === index ? 'secondary' : 'ghost'}
-                                                    className={`flex-shrink-0 ${selectedDayIndex === index ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-                                                    onClick={() => setSelectedDayIndex(index)}
-                                                >
-                                                    Jour {day.orderIndex + 1}
-                                                </Button>
-                                            </CarouselItem>
-                                        )
-                                    })}
-                                </CarouselContent>
-                                <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
-                                <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
-                            </Carousel>
+                {/* Day Itinerary */}
+                <div className="flex flex-col lg:overflow-y-auto">
+                    {/* Day Selector */}
+                    <div className="w-full border-b border-slate-800 sticky top-0 bg-bg-dark/80 backdrop-blur-sm z-10">
+                        <div className="container mx-auto px-6">
+                            <div className="relative py-2">
+                                <Carousel
+                                    opts={{
+                                        align: "start",
+                                        dragFree: true,
+                                    }}
+                                    className="mx-8"
+                                >
+                                    <CarouselContent className="-ml-2">
+                                        {days.map((day, index) => {
+                                            return (
+                                                <CarouselItem key={day.id} className="basis-auto pl-2">
+                                                    <Button
+                                                        variant={selectedDayIndex === index ? 'secondary' : 'ghost'}
+                                                        className={`flex-shrink-0 ${selectedDayIndex === index ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                                                        onClick={() => setSelectedDayIndex(index)}
+                                                    >
+                                                        Jour {day.orderIndex + 1}
+                                                    </Button>
+                                                </CarouselItem>
+                                            )
+                                        })}
+                                    </CarouselContent>
+                                    <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
+                                    <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
+                                </Carousel>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 lg:overflow-hidden">
-                  <div className="flex flex-col bg-bg-dark lg:overflow-y-auto">
+                    
+                    {/* Event List */}
                     <div className="p-6">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
                             <h2 className="text-xl font-bold font-headline capitalize">
@@ -955,14 +961,15 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                             )}
                         </div>
                     </div>
-                  </div>
-                  <div className="bg-bg-dark h-[50vh] min-h-[300px] lg:h-full lg:min-h-0 relative">
+                </div>
+
+                {/* Map View */}
+                <div className="bg-bg-dark h-[50vh] min-h-[400px] lg:h-auto lg:min-h-0 lg:overflow-y-auto">
                     <MapView events={dayEvents} day={selectedDay} />
-                  </div>
                 </div>
               </>
             ) : (
-                <div className="flex-grow flex items-center justify-center">
+                <div className="flex-grow flex items-center justify-center col-span-2">
                      <Card className="col-span-full flex flex-col items-center justify-center p-12 border-dashed border-slate-700 bg-slate-800/20">
                         <h2 className="text-xl font-semibold mb-2">Prêt à planifier ?</h2>
                         <p className="text-slate-400 mb-6">Choisissez une option pour commencer à remplir votre itinéraire.</p>
@@ -990,13 +997,13 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             )}
           </TabsContent>
 
-          <TabsContent value="info" className="flex-grow overflow-y-auto bg-slate-900/50">
-            <TripInfo destinations={Array.isArray(tripData?.destinations) ? tripData.destinations : []} />
+          <TabsContent value="info" className="flex-grow overflow-y-auto bg-slate-900/50 col-span-2">
+            <TripInfo tripId={tripId} destinations={Array.isArray(tripData?.destinations) ? tripData.destinations : []} />
           </TabsContent>
         </Tabs>
       </div>
       <Dialog open={isEventFormOpen} onOpenChange={setIsEventFormOpen}>
-          <DialogContent className="z-[60]">
+          <DialogContent>
               <DialogHeader>
                   <DialogTitle>{currentEvent ? "Modifier l'événement" : 'Ajouter un nouvel événement'}</DialogTitle>
                   <DialogDescription>

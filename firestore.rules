@@ -135,6 +135,21 @@ service cloud.firestore {
             }
           }
         }
+        
+        /**
+         * @description Controls access to the AI-generated insights for a trip.
+         * @path /users/{userId}/trips/{tripId}/insights/{insightId}
+         * @allow (list) The trip owner can list all insights for their trip.
+         * @deny (create) An unauthenticated user cannot create an insight.
+         * @principle Ensures that only the trip owner can manage their trip insights.
+         */
+        match /insights/{insightId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId) && request.resource.data.tripId == tripId;
+          allow update: if isExistingOwner(userId) && request.resource.data.tripId == resource.data.tripId;
+          allow delete: if isExistingOwner(userId);
+        }
       }
     }
   }
