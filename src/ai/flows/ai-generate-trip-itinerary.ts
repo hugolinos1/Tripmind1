@@ -69,7 +69,6 @@ export type GenerateItineraryInput = z.infer<typeof GenerateItineraryInputSchema
 const generateItineraryPrompt = ai.definePrompt({
   name: 'generateItineraryPrompt',
   input: { schema: GenerateItineraryInputSchema },
-  output: { schema: GenerateItineraryOutputSchema },
   model: 'googleai/gemini-1.0-pro',
   config: {
     temperature: 0.7,
@@ -116,11 +115,21 @@ const generateTripItineraryFlow = ai.defineFlow(
     outputSchema: GenerateItineraryOutputSchema,
   },
   async (input) => {
-    const {output} = await generateItineraryPrompt(input);
-    if (!output) {
+    const response = await generateItineraryPrompt(input);
+    const textResponse = response.text;
+    
+    if (!textResponse) {
       throw new Error('Failed to generate itinerary: AI returned no output.');
     }
-    return output;
+    
+    try {
+      const jsonText = textResponse.replace(/^```json\n?/, '').replace(/```$/, '');
+      const parsed = JSON.parse(jsonText);
+      return GenerateItineraryOutputSchema.parse(parsed);
+    } catch (e) {
+      console.error("Failed to parse AI response:", e, "Raw response:", textResponse);
+      throw new Error("Failed to parse AI JSON response.");
+    }
   }
 );
 

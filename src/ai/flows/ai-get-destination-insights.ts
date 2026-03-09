@@ -205,7 +205,6 @@ export type GetDestinationInsightsOutput = z.infer<typeof GetDestinationInsights
 const getDestinationInsightsPrompt = ai.definePrompt({
   name: 'getDestinationInsightsPrompt',
   input: { schema: GetDestinationInsightsInputSchema },
-  output: { schema: GetDestinationInsightsOutputSchema },
   model: 'googleai/gemini-1.0-pro',
   prompt: `
     You are an expert travel guide providing comprehensive practical information about travel destinations.
@@ -236,16 +235,21 @@ const getDestinationInsightsFlow = ai.defineFlow(
     outputSchema: GetDestinationInsightsOutputSchema
   },
   async (input) => {
-    const { output } = await getDestinationInsightsPrompt(input);
+    const response = await getDestinationInsightsPrompt(input);
+    const textResponse = response.text;
 
-    if (!output) {
+    if (!textResponse) {
       throw new Error('AI failed to generate destination insights.');
     }
-
-    // The flow's outputSchema is GetDestinationInsightsOutput, which is the full object.
-    // The API endpoint should handle filtering by `section` if needed.
-    // So, we just return the full output from the prompt.
-    return output;
+    
+    try {
+      const jsonText = textResponse.replace(/^```json\n?/, '').replace(/```$/, '');
+      const parsed = JSON.parse(jsonText);
+      return GetDestinationInsightsOutputSchema.parse(parsed);
+    } catch (e) {
+      console.error("Failed to parse AI response:", e, "Raw response:", textResponse);
+      throw new Error("Failed to parse AI JSON response.");
+    }
   }
 );
 
