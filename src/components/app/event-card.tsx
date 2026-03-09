@@ -49,6 +49,7 @@ interface EventCardProps {
     onMoveDown: () => void;
     onGeocode: (eventId: string) => void;
     onDelete: (eventId: string) => void;
+    onEdit: (event: Event) => void;
     isFirst: boolean;
     isLast: boolean;
     isGeocoding: boolean;
@@ -62,7 +63,7 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onGeocode, onDelete, isFirst, isLast, isGeocoding }: EventCardProps) => {
+const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding }: EventCardProps) => {
   const [isEnriching, setIsEnriching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const config = eventTypeConfig[event.type] || eventTypeConfig.activity;
@@ -237,7 +238,7 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onG
                         {isGeocoding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
                         <span>Géolocaliser</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onEdit(event)} className="cursor-pointer">
                         <Edit className="mr-2 h-4 w-4" />
                         Modifier
                     </DropdownMenuItem>

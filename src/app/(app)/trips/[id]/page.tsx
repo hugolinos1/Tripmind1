@@ -30,7 +30,7 @@ import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
 import { geocodeLocation } from '@/ai/flows/ai-geocode-location';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
+import { doc, collection, query, orderBy, serverTimestamp, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -78,7 +78,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState<'full' | 'day' | 'completing' | false>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [isEventFormOpen, setIsEventFormOpen] = useState(false);
+  const [currentEvent, setCurrentEvent] = useState<EventType | null>(null); // null for 'add', event for 'edit'
   const [startLocation, setStartLocation] = useState('');
   const [endLocation, setEndLocation] = useState('');
   const [isGeocoding, setIsGeocoding] = useState<null | 'start' | 'end' | string>(null);
@@ -115,6 +116,85 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       locationName: '',
     },
   });
+
+  const handleOpenEventForm = (event: EventType | null) => {
+    setCurrentEvent(event);
+    if (event) {
+      eventForm.reset({
+        title: event.title || '',
+        type: event.type || 'activity',
+        startTime: event.startTime || '',
+        durationMinutes: event.durationMinutes || undefined,
+        locationName: event.locationName || '',
+      });
+    } else {
+      eventForm.reset({
+        title: '',
+        type: 'activity',
+        startTime: '',
+        durationMinutes: undefined,
+        locationName: '',
+      });
+    }
+    setIsEventFormOpen(true);
+  };
+
+  const handleEventFormSubmit = async (values: EventFormValues) => {
+    if (!user || !firestore || !selectedDay) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de sauvegarder l'événement." });
+      return;
+    }
+  
+    try {
+      if (currentEvent) {
+        // Edit existing event
+        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', currentEvent.id);
+        const dataToUpdate = {
+          title: values.title,
+          type: values.type,
+          startTime: values.startTime || null,
+          durationMinutes: values.durationMinutes || null,
+          locationName: values.locationName || '',
+          updatedAt: serverTimestamp(),
+        };
+        await updateDoc(eventRef, dataToUpdate);
+        toast({ title: "Événement mis à jour !", description: `L'événement "${values.title}" a été modifié.` });
+      } else {
+        // Add new event
+        const orderIndex = events?.length || 0;
+        const eventId = uuidv4();
+        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
+        
+        const eventData = {
+          dayId: selectedDay.id,
+          type: values.type,
+          title: values.title,
+          description: '',
+          startTime: values.startTime || null,
+          durationMinutes: values.durationMinutes || null,
+          locationName: values.locationName || '',
+          lat: null,
+          lng: null,
+          orderIndex: orderIndex,
+          isAiEnriched: false,
+          photos: [],
+          practicalInfo: JSON.stringify({}),
+          attachments: [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        await setDoc(eventRef, eventData);
+        toast({ title: "Événement ajouté !", description: `L'événement "${values.title}" a été ajouté.` });
+      }
+    } catch (error) {
+      console.error("Error saving event:", error);
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de sauvegarder l'événement." });
+    } finally {
+      setIsEventFormOpen(false);
+      setCurrentEvent(null);
+      eventForm.reset();
+    }
+  };
 
   // Reset selected day if days change
   useEffect(() => {
@@ -526,49 +606,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     });
   };
 
-  const handleAddEvent = async (values: EventFormValues) => {
-    if (!user || !firestore || !selectedDay) {
-        toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ajouter un événement. Aucun jour sélectionné." });
-        return;
-    }
-    
-    const orderIndex = events?.length || 0;
-
-    try {
-        const eventId = uuidv4();
-        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
-        
-        const eventData = {
-            dayId: selectedDay.id,
-            type: values.type,
-            title: values.title,
-            description: '',
-            startTime: values.startTime || null,
-            durationMinutes: values.durationMinutes || null,
-            locationName: values.locationName || '',
-            lat: null,
-            lng: null,
-            orderIndex: orderIndex,
-            isAiEnriched: false,
-            photos: [],
-            practicalInfo: JSON.stringify({}),
-            attachments: [],
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        };
-
-        await setDoc(eventRef, eventData);
-        
-        toast({ title: "Événement ajouté !", description: `L'événement "${values.title}" a été ajouté.` });
-        setIsAddEventOpen(false);
-        eventForm.reset();
-
-    } catch (error) {
-        console.error("Error adding event:", error);
-        toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ajouter l'événement." });
-    }
-  };
-
   const handleMoveEvent = async (eventId: string, direction: 'up' | 'down') => {
     if (!user || !firestore || !selectedDay || !events || events.length < 2) return;
 
@@ -886,6 +923,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                       onMoveDown={() => handleMoveEvent(event.id, 'down')}
                                       onGeocode={handleGeocodeEvent}
                                       onDelete={handleDeleteEvent}
+                                      onEdit={() => handleOpenEventForm(event)}
                                       isFirst={index === 0}
                                       isLast={index === dayEvents.length - 1}
                                       isGeocoding={isGeocoding === event.id}
@@ -912,75 +950,10 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                             )}
                              {!isEventsLoading && (
                                 <div className="pt-4">
-                                    <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" className="w-full">
-                                                <PlusCircle className="mr-2 h-4 w-4" />
-                                                Ajouter un événement
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>Ajouter un nouvel événement</DialogTitle>
-                                                <DialogDescription>
-                                                    Remplissez les détails de votre nouvel événement pour le {dayDate ? `Jour ${selectedDayIndex+1}`: ''}.
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <Form {...eventForm}>
-                                                <form onSubmit={eventForm.handleSubmit(handleAddEvent)} className="space-y-4">
-                                                    <FormField control={eventForm.control} name="title" render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Titre</FormLabel>
-                                                            <FormControl><Input placeholder="Ex: Dîner au restaurant" {...field} /></FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}/>
-                                                    <FormField control={eventForm.control} name="type" render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Type</FormLabel>
-                                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                                <FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un type" /></SelectTrigger></FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="activity">Activité</SelectItem>
-                                                                    <SelectItem value="visit">Visite</SelectItem>
-                                                                    <SelectItem value="meal">Repas</SelectItem>
-                                                                    <SelectItem value="transport">Transport</SelectItem>
-                                                                    <SelectItem value="accommodation">Hébergement</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}/>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <FormField control={eventForm.control} name="startTime" render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>Heure de début</FormLabel>
-                                                                <FormControl><Input placeholder="HH:mm" {...field} /></FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}/>
-                                                        <FormField control={eventForm.control} name="durationMinutes" render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>Durée (min)</FormLabel>
-                                                                <FormControl><Input type="number" placeholder="Ex: 60" {...field} /></FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}/>
-                                                    </div>
-                                                    <FormField control={eventForm.control} name="locationName" render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Lieu (optionnel)</FormLabel>
-                                                            <FormControl><Input placeholder="Nom ou addresse du lieu" {...field} /></FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}/>
-                                                    <DialogFooter>
-                                                        <Button type="submit" disabled={eventForm.formState.isSubmitting}>Ajouter l'événement</Button>
-                                                    </DialogFooter>
-                                                </form>
-                                            </Form>
-                                        </DialogContent>
-                                    </Dialog>
+                                  <Button variant="outline" className="w-full" onClick={() => handleOpenEventForm(null)}>
+                                      <PlusCircle className="mr-2 h-4 w-4" />
+                                      Ajouter un événement
+                                  </Button>
                                 </div>
                             )}
                         </div>
@@ -1025,6 +998,72 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </TabsContent>
         </Tabs>
       </div>
+      <Dialog open={isEventFormOpen} onOpenChange={setIsEventFormOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>{currentEvent ? "Modifier l'événement" : 'Ajouter un nouvel événement'}</DialogTitle>
+                  <DialogDescription>
+                      {currentEvent ? "Mettez à jour les détails de votre événement." : `Remplissez les détails de votre nouvel événement pour le ${dayDate ? `Jour ${selectedDayIndex+1}`: ''}.`}
+                  </DialogDescription>
+              </DialogHeader>
+              <Form {...eventForm}>
+                  <form onSubmit={eventForm.handleSubmit(handleEventFormSubmit)} className="space-y-4">
+                      <FormField control={eventForm.control} name="title" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Titre</FormLabel>
+                              <FormControl><Input placeholder="Ex: Dîner au restaurant" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}/>
+                      <FormField control={eventForm.control} name="type" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Type</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un type" /></SelectTrigger></FormControl>
+                                  <SelectContent>
+                                      <SelectItem value="activity">Activité</SelectItem>
+                                      <SelectItem value="visit">Visite</SelectItem>
+                                      <SelectItem value="meal">Repas</SelectItem>
+                                      <SelectItem value="transport">Transport</SelectItem>
+                                      <SelectItem value="accommodation">Hébergement</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                      )}/>
+                      <div className="grid grid-cols-2 gap-4">
+                          <FormField control={eventForm.control} name="startTime" render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Heure de début</FormLabel>
+                                  <FormControl><Input placeholder="HH:mm" {...field} /></FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}/>
+                          <FormField control={eventForm.control} name="durationMinutes" render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Durée (min)</FormLabel>
+                                  <FormControl><Input type="number" placeholder="Ex: 60" {...field} /></FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}/>
+                      </div>
+                      <FormField control={eventForm.control} name="locationName" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Lieu (optionnel)</FormLabel>
+                              <FormControl><Input placeholder="Nom ou addresse du lieu" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}/>
+                      <DialogFooter>
+                          <Button type="button" variant="ghost" onClick={() => setIsEventFormOpen(false)}>Annuler</Button>
+                          <Button type="submit" disabled={eventForm.formState.isSubmitting}>
+                            {currentEvent ? "Enregistrer les modifications" : "Ajouter l'événement"}
+                          </Button>
+                      </DialogFooter>
+                  </form>
+              </Form>
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }
