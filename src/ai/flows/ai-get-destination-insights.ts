@@ -2,16 +2,10 @@
 /**
  * @fileOverview Fetches destination insights using the OpenRouter API.
  */
-
-export interface GetDestinationInsightsInput {
-  destinations: string[];
-  sectionId: string;
-  sectionLabel: string;
-}
-
-export interface GetDestinationInsightsOutput {
-  content: string; // Markdown formatted content
-}
+import {
+    GetDestinationInsightsInput,
+    GetDestinationInsightsOutput,
+} from '@/ai/types';
 
 const promptTemplate = (input: GetDestinationInsightsInput) => `
 You are a world-class travel expert.

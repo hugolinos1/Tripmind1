@@ -2,36 +2,10 @@
 /**
  * @fileOverview Generates a trip itinerary using the OpenRouter API.
  */
-
-// These types are based on the previous definitions for compatibility.
-export interface GenerateItineraryInput {
-  tripId: string;
-  title: string;
-  destinations: string[];
-  startDate: string;
-  endDate: string;
-  travelers: any;
-  preferences: any;
-}
-
-export type Event = {
-    type: 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
-    title: string;
-    description?: string;
-    startTime: string; // "HH:mm"
-    durationMinutes?: number;
-    locationName?: string;
-    lat?: number;
-    lng?: number;
-};
-
-export type DayPlan = {
-    date: string; // "YYYY-MM-DD"
-    location: string;
-    events: Event[];
-};
-
-export type GenerateItineraryOutput = DayPlan[];
+import {
+    GenerateItineraryInput,
+    GenerateItineraryOutput,
+} from '@/ai/types';
 
 
 const promptTemplate = (input: GenerateItineraryInput) => `

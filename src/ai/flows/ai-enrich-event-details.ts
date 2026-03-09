@@ -3,28 +3,11 @@
  * @fileOverview Enriches an event with details using the OpenRouter API.
  */
 
-import { z } from 'zod';
-
-// Basic event info to send for enrichment
-export const EnrichEventInputSchema = z.object({
-    title: z.string(),
-    description: z.string().optional(),
-    locationName: z.string().optional(),
-    type: z.string(),
-});
-export type EnrichEventInput = z.infer<typeof EnrichEventInputSchema>;
-
-
-// The enriched data we expect back from the AI
-export const EnrichEventOutputSchema = z.object({
-  description: z.string().describe("A detailed, engaging description for the event. Write it in French."),
-  practicalInfo: z.object({
-    openingHours: z.string().optional().describe("Opening hours, if applicable."),
-    price: z.string().optional().describe("Price range or ticket cost, if applicable."),
-    tips: z.string().optional().describe("Actionable tips for visitors."),
-  }).describe("Practical information about the event. All values should be in French."),
-});
-export type EnrichEventOutput = z.infer<typeof EnrichEventOutputSchema>;
+import {
+    EnrichEventInput,
+    EnrichEventOutput,
+    EnrichEventOutputSchema,
+} from '@/ai/types';
 
 
 const promptTemplate = (input: EnrichEventInput) => `
