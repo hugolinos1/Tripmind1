@@ -25,11 +25,12 @@ export function initializeFirebase() {
     return getSdks(firebaseApp);
   } catch (e) {
     // If both methods fail, it means the configuration is missing.
-    throw new Error(
+    console.error(new Error(
       "Firebase configuration is missing or incomplete. " +
       "Please copy `.env` to `.env.local` and fill in your Firebase project details. " +
       "If you've just created the file, you may need to restart the development server."
-    );
+    ));
+    return null;
   }
 }
 
