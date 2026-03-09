@@ -650,7 +650,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                             onBlur={(e) => handleLocationUpdate('start', e.target.value)}
                                             placeholder="Hôtel, aéroport, gare..."
                                             className="bg-slate-900/50 border-slate-700 pr-10"
-                                            disabled={selectedDayIndex > 0}
                                         />
                                         <Button 
                                             size="icon" 
@@ -662,13 +661,12 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                                     : 'text-slate-400 hover:text-primary'
                                             )}
                                             onClick={() => handleGeocodeDayLocation('start')}
-                                            disabled={isGeocoding === 'start' || !startLocation || selectedDayIndex > 0}
+                                            disabled={isGeocoding === 'start' || !startLocation}
                                             aria-label="Géolocaliser le lieu de départ"
                                         >
                                             {isGeocoding === 'start' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
                                         </Button>
                                     </div>
-                                    {selectedDayIndex > 0 && <p className="text-xs text-slate-500 mt-1">Défini par le lieu d'arrivée du jour précédent.</p>}
                                 </div>
                                 <div>
                                     <Label htmlFor="end-location" className="text-xs font-semibold text-slate-400">Lieu d'arrivée</Label>
