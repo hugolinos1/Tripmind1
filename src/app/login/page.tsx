@@ -11,7 +11,10 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -60,6 +63,7 @@ export default function LoginPage() {
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
 
+  const isMobile = useIsMobile();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -67,6 +71,16 @@ export default function LoginPage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Handle result from Google's redirect-based sign-in
+  useEffect(() => {
+    if (auth) {
+        getRedirectResult(auth)
+            .catch((error) => {
+                setFirebaseError(getFriendlyAuthErrorMessage(error));
+            });
+    }
+  }, [auth]);
 
   useEffect(() => {
     if (user) {
@@ -96,9 +110,18 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setFirebaseError(null);
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider).catch((error) => {
-      setFirebaseError(getFriendlyAuthErrorMessage(error));
-    });
+    
+    if (isMobile) {
+      // signInWithRedirect is more reliable on mobile devices
+      signInWithRedirect(auth, provider).catch((error) => {
+        setFirebaseError(getFriendlyAuthErrorMessage(error));
+      });
+    } else {
+      // signInWithPopup is a better UX on desktop
+      signInWithPopup(auth, provider).catch((error) => {
+        setFirebaseError(getFriendlyAuthErrorMessage(error));
+      });
+    }
   };
 
   if (!isClient || isUserLoading || user) {
