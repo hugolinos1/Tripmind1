@@ -33,7 +33,7 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@
 import { doc, collection, query, orderBy, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
-import { updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 
@@ -600,7 +600,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   };
 
   const handleDeleteEvent = (eventId: string) => {
-    if (!user || !firestore || !selectedDay) {
+    if (!user || !firestore || !selectedDay || !events) {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -609,12 +609,36 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       return;
     }
     
-    const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
-    deleteDocumentNonBlocking(eventRef);
+    const eventToDelete = events.find(e => e.id === eventId);
+    if (!eventToDelete) {
+        toast({ variant: "destructive", title: "Erreur", description: "Événement non trouvé." });
+        return;
+    }
     
-    toast({
-      title: "Événement supprimé",
-      description: "L'événement a été retiré de votre itinéraire.",
+    const batch = writeBatch(firestore);
+    
+    const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
+    batch.delete(eventRef);
+
+    const eventsToUpdate = events.filter(e => e.orderIndex > eventToDelete.orderIndex);
+
+    eventsToUpdate.forEach(event => {
+        const subsequentEventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', event.id);
+        batch.update(subsequentEventRef, { orderIndex: event.orderIndex - 1, updatedAt: serverTimestamp() });
+    });
+
+    batch.commit().then(() => {
+        toast({
+            title: "Événement supprimé",
+            description: "L'itinéraire a été mis à jour.",
+        });
+    }).catch(error => {
+        console.error("Error deleting event and reordering:", error);
+        toast({
+            variant: "destructive",
+            title: "Erreur de suppression",
+            description: "Impossible de mettre à jour l'itinéraire. Veuillez réessayer.",
+        });
     });
   };
 
