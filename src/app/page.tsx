@@ -1,10 +1,19 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Bot, Landmark, Map } from 'lucide-react';
 import { Logo } from '@/components/logo';
+import { useState, useEffect } from 'react';
 
 export default function LandingPage() {
+  const [year, setYear] = useState<number | string>('');
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-slate-900 to-bg-dark text-white">
       <header className="container mx-auto px-6">
@@ -59,7 +68,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="container mx-auto px-6 py-6 text-center text-slate-400">
-        <p>&copy; {new Date().getFullYear()} TripMind. Tous droits réservés.</p>
+        <p>&copy; {year} TripMind. Tous droits réservés.</p>
       </footer>
     </div>
   );
