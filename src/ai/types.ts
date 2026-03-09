@@ -14,6 +14,7 @@ export const EnrichEventOutputSchema = z.object({
   practicalInfo: z.object({
     openingHours: z.string().optional().describe("Opening hours, if applicable."),
     price: z.string().optional().describe("Price range or ticket cost, if applicable."),
+    website: z.string().optional().describe("The official website for the event or location."),
     tips: z.string().optional().describe("Actionable tips for visitors."),
   }).describe("Practical information about the event. All values should be in French."),
 });

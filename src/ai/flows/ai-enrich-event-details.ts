@@ -21,7 +21,7 @@ ${input.description ? `- **Current Description:** ${input.description}` : ''}
 
 **Instructions:**
 1.  **Rewrite and expand the description.** Make it more engaging, inspiring, and useful for a traveler. The language must be French.
-2.  **Find practical information.** Research and provide details like opening hours, prices, and insider tips. For fields where no information can be found, return an empty string.
+2.  **Find practical information.** Research and provide details like opening hours, prices, the official website, and insider tips. For fields where no information can be found, return an empty string or omit the field.
 3.  **Format the output as a valid JSON object.** Your entire response must be ONLY a raw JSON object. Do not include markdown backticks or any other text outside of the JSON. **CRITICAL**: Ensure the JSON is valid. All strings containing double quotes must have them escaped with a backslash (e.g., "description": "Une description \\"avec\\" des guillemets.").
 
 **JSON Output Schema:**
@@ -32,6 +32,7 @@ The output must be a JSON object that strictly follows this Zod schema:
   "practicalInfo": {
     "openingHours": "(e.g., 'Lundi-Vendredi : 9h-18h', '24/7', or 'Fermé le mardi')",
     "price": "(e.g., 'Entrée gratuite', 'À partir de 25€', 'Variable')",
+    "website": "https://www.example.com",
     "tips": "Actionable tips for visitors in French."
   }
 }

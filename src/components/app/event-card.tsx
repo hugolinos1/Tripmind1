@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown } from "lucide-react";
+import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
@@ -25,6 +25,7 @@ export interface Event {
     openingHours?: string;
     price?: string;
     tips?: string;
+    website?: string;
   };
   lat?: number;
   lng?: number;
@@ -60,7 +61,7 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
     }
   };
 
-  const hasPracticalInfo = event.practicalInfo && (event.practicalInfo.openingHours || event.practicalInfo.price || event.practicalInfo.tips);
+  const hasPracticalInfo = event.practicalInfo && (event.practicalInfo.openingHours || event.practicalInfo.price || event.practicalInfo.tips || event.practicalInfo.website);
 
   return (
     <Card className={`border-l-4 ${config.color} border-y-slate-800 border-r-slate-800 bg-slate-800/30 group hover:bg-slate-800/60 transition-colors`}>
@@ -77,10 +78,18 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
                             <Info className="h-4 w-4 text-slate-400 cursor-pointer" />
                         </TooltipTrigger>
                         <TooltipContent>
-                            <div className="space-y-1 text-sm">
+                            <div className="space-y-2 p-1 text-sm max-w-xs">
                                 {event.practicalInfo?.openingHours && <p><strong>Horaires:</strong> {event.practicalInfo.openingHours}</p>}
                                 {event.practicalInfo?.price && <p><strong>Prix:</strong> {event.practicalInfo.price}</p>}
                                 {event.practicalInfo?.tips && <p><strong>Conseils:</strong> {event.practicalInfo.tips}</p>}
+                                {event.practicalInfo?.website && (
+                                    <p className="flex items-center gap-2">
+                                        <Globe className="h-4 w-4 text-slate-400" />
+                                        <a href={event.practicalInfo.website} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+                                            Visiter le site web
+                                        </a>
+                                    </p>
+                                )}
                             </div>
                         </TooltipContent>
                     </Tooltip>
