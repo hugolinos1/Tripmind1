@@ -18,6 +18,9 @@ import { generateTripItinerary } from '@/ai/flows/ai-generate-trip-itinerary';
 import type { GenerateItineraryInput } from '@/ai/types';
 import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
 import { useToast } from '@/hooks/use-toast';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const MapView = dynamic(() => import('../../../../components/app/map-view'), {
   ssr: false,
@@ -52,36 +55,96 @@ const initialTrip = {
 const LOCAL_STORAGE_KEY_PREFIX = 'trip_';
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
-  const [trip, setTrip] = useState({...initialTrip, id: params.id });
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const tripRef = useMemoFirebase(() => {
+    if (!user || !firestore || !params.id) return null;
+    return doc(firestore, 'users', user.uid, 'trips', params.id as string);
+  }, [firestore, user, params.id]);
+
+  const { data: tripData, isLoading: isTripLoading } = useDoc(tripRef);
+
+  // The 'trip' state now holds both the static data from firestore and the dynamic 'days' array
+  const [trip, setTrip] = useState({ ...initialTrip, id: params.id });
   const [selectedDay, setSelectedDay] = useState(0);
   const [isGenerating, setIsGenerating] = useState<'full' | 'day' | false>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const { toast } = useToast();
+
+  useEffect(() => {
+    if (tripData) {
+      // Merge fetched data into the local state.
+      // This uses real trip properties but keeps the demo 'days' structure for now if not present in Firestore.
+      const startDate = tripData.startDate?.toDate();
+      const endDate = tripData.endDate?.toDate();
+      
+      let days = trip.days;
+      if (startDate && endDate) {
+          const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+          days = Array.from({ length: diffDays }, (_, i) => {
+                const dayDate = new Date(startDate);
+                dayDate.setDate(startDate.getDate() + i);
+                return {
+                  id: `day-${i + 1}`,
+                  date: dayDate,
+                  orderIndex: i,
+                  events: [],
+                };
+              });
+      }
+
+      setTrip(currentTrip => ({
+          ...currentTrip,
+          ...tripData,
+          days,
+      }));
+    }
+  }, [tripData]);
+
 
   const dayEvents = trip.days[selectedDay]?.events || [];
   const dayDate = trip.days[selectedDay]?.date;
 
   const handleGenerateItinerary = async (dayIndex?: number) => {
+    if (!tripData) {
+        toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: "Les données du voyage ne sont pas encore chargées.",
+        });
+        return;
+    }
+
     const generationType = typeof dayIndex === 'number' ? 'day' : 'full';
     setIsGenerating(generationType);
     setGenerationError(null);
 
-    const mockTravelers = { adults: 2, children: [], hasPets: false };
-    const mockPreferences = { pace: 50, budget: 50, interests: ['culture', 'gastronomy'], accessibility: [], dietary: [], alreadyVisited: [], mustSee: [] };
+    const travelers = JSON.parse(tripData.travelers || '{}');
+    const preferences = JSON.parse(tripData.preferences || '{}');
 
     const isSingleDay = typeof dayIndex === 'number';
-    const startDate = isSingleDay ? format(trip.days[dayIndex!].date, 'yyyy-MM-dd') : trip.startDate;
-    const endDate = isSingleDay ? format(trip.days[dayIndex!].date, 'yyyy-MM-dd') : trip.endDate;
+    const tripStartDate = tripData.startDate?.toDate();
+    const tripEndDate = tripData.endDate?.toDate();
+
+    if (!tripStartDate || !tripEndDate) {
+        toast({ variant: "destructive", title: "Erreur", description: "Les dates du voyage ne sont pas définies." });
+        return;
+    }
+
+    const startDate = isSingleDay ? format(trip.days[dayIndex!].date, 'yyyy-MM-dd') : format(tripStartDate, 'yyyy-MM-dd');
+    const endDate = isSingleDay ? format(trip.days[dayIndex!].date, 'yyyy-MM-dd') : format(tripEndDate, 'yyyy-MM-dd');
 
     try {
         const input: GenerateItineraryInput = {
-            tripId: trip.id,
-            title: trip.title,
-            destinations: trip.destinations,
+            tripId: tripData.id,
+            title: tripData.title,
+            destinations: tripData.destinations,
             startDate: startDate,
             endDate: endDate,
-            travelers: mockTravelers,
-            preferences: mockPreferences,
+            travelers: travelers,
+            preferences: preferences,
         };
 
         const generatedItinerary = await generateTripItinerary(input);
@@ -210,6 +273,29 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     });
   };
 
+  if (isTripLoading) {
+    return (
+        <div className="flex flex-col h-screen bg-bg-dark">
+            <AppHeader />
+             <header className="container mx-auto px-6 py-4 flex items-center justify-between border-b border-slate-800">
+                <Skeleton className="h-12 w-1/3" />
+                <Skeleton className="h-10 w-64" />
+            </header>
+            <div className="container mx-auto px-6 py-4 border-b border-slate-800">
+                 <Skeleton className="h-10 w-1/4" />
+            </div>
+            <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 overflow-hidden">
+                <div className="p-6 space-y-4">
+                    <Skeleton className="h-8 w-1/2" />
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                </div>
+                 <Skeleton className="h-full w-full" />
+            </div>
+        </div>
+    )
+  }
+
 
   return (
     <div className="flex flex-col h-screen bg-bg-dark">
@@ -229,7 +315,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
               <h1 className="text-2xl font-bold font-headline">{trip.title}</h1>
               <p className="text-sm text-slate-400 flex items-center gap-2">
                 <MapPin className="h-3 w-3" />
-                {trip.destinations.join(' → ')}
+                {Array.isArray(trip.destinations) ? trip.destinations.join(' → ') : ''}
               </p>
             </div>
           </div>
@@ -350,7 +436,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </TabsContent>
 
           <TabsContent value="info" className="flex-grow overflow-y-auto bg-slate-900/50">
-            <TripInfo destinations={trip.destinations} />
+            <TripInfo destinations={Array.isArray(trip.destinations) ? trip.destinations : []} />
           </TabsContent>
         </Tabs>
       </div>
