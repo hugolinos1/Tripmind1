@@ -15,6 +15,7 @@ import { CreditCard, LogOut, Settings, User, Plane } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Skeleton } from '../ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 export function AppHeader() {
   return (
@@ -33,9 +34,19 @@ export function AppHeader() {
 function UserNav() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const { toast } = useToast();
 
   const handleSignOut = () => {
-    signOut(auth);
+    if (auth) {
+      signOut(auth);
+    }
+  };
+
+  const handleFeatureNotImplemented = (featureName: string) => {
+    toast({
+      title: "Bientôt disponible",
+      description: `La fonctionnalité "${featureName}" n'est pas encore implémentée.`,
+    });
   };
 
   if (isUserLoading) {
@@ -70,15 +81,15 @@ function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => handleFeatureNotImplemented('Profil')} className="cursor-pointer">
           <User className="mr-2 h-4 w-4" />
           <span>Profil</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => handleFeatureNotImplemented('Abonnement')} className="cursor-pointer">
           <CreditCard className="mr-2 h-4 w-4" />
           <span>Abonnement</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => handleFeatureNotImplemented('Paramètres')} className="cursor-pointer">
           <Settings className="mr-2 h-4 w-4" />
           <span>Paramètres</span>
         </DropdownMenuItem>
