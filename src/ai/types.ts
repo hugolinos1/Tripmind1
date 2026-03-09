@@ -83,6 +83,7 @@ export type TransportSuggestionInput = z.infer<typeof TransportSuggestionInputSc
 export const TransportSuggestionSchema = z.object({
   mode: z.enum(['walking', 'public_transport', 'taxi', 'bike_sharing', 'other']).describe("Mode of transport."),
   durationMinutes: z.number().describe("Estimated travel time in minutes."),
+  distanceKm: z.number().optional().describe("Estimated distance in kilometers."),
   cost: z.string().describe("Estimated cost, e.g., 'Gratuit', '€2.15', '€15-20'."),
   description: z.string().describe("Brief description in French, including ease of use and tips."),
   isEcoFriendly: z.boolean().optional().describe("Whether this option is environmentally friendly."),

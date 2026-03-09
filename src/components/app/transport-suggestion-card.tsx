@@ -15,6 +15,7 @@ import {
   Euro,
   Leaf,
   ChevronDown,
+  Waypoints,
 } from 'lucide-react';
 import { getTransportSuggestions } from '@/ai/flows/ai-get-transport-suggestions';
 import type { TransportSuggestionOutput, TransportSuggestionInput } from '@/ai/types';
@@ -124,6 +125,7 @@ export function TransportSuggestionCard({ startEvent, endEvent }: TransportSugge
                                         <div className="flex-grow">
                                             <p className="font-semibold text-white">{modeLabels[suggestion.mode] || suggestion.mode}</p>
                                             <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
+                                                {suggestion.distanceKm && <span className="flex items-center gap-1.5"><Waypoints className="h-3 w-3" /> {suggestion.distanceKm} km</span>}
                                                 <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {suggestion.durationMinutes} min</span>
                                                 <span className="flex items-center gap-1.5"><Euro className="h-3 w-3" /> {suggestion.cost}</span>
                                                 {suggestion.isEcoFriendly && <span className="flex items-center gap-1.5 text-green-400"><Leaf className="h-3 w-3" /> Écologique</span>}
