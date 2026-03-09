@@ -3,10 +3,18 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
 import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit } from 'lucide-react';
 import Link from 'next/link';
 import EventCard, { type Event as EventType, type Attachment } from '@/components/app/event-card';
@@ -19,7 +27,7 @@ import type { GenerateItineraryInput } from '@/ai/types';
 import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, collection, query, orderBy, serverTimestamp, writeBatch, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -40,6 +48,17 @@ interface Day {
     orderIndex: number;
 }
 
+const eventFormSchema = z.object({
+    title: z.string().min(3, { message: 'Le titre doit contenir au moins 3 caractères.' }),
+    type: z.enum(['activity', 'visit', 'meal', 'transport', 'accommodation'], { required_error: 'Veuillez sélectionner un type.'}),
+    startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Format HH:mm invalide.' }).optional().or(z.literal('')),
+    durationMinutes: z.coerce.number().int().positive().optional(),
+    locationName: z.string().optional(),
+  });
+  
+type EventFormValues = z.infer<typeof eventFormSchema>;
+  
+
 export default function TripEditorPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -49,6 +68,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState<'full' | 'day' | false>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [isAddEventOpen, setIsAddEventOpen] = useState(false);
 
   // --- Data Fetching from Firestore ---
   const tripRef = useMemoFirebase(() => {
@@ -71,11 +91,65 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     return query(collection(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events'), orderBy('orderIndex'));
   }, [firestore, user, tripId, selectedDay]);
   const { data: events, isLoading: isEventsLoading } = useCollection<EventType>(eventsQuery);
+  
+  const eventForm = useForm<EventFormValues>({
+    resolver: zodResolver(eventFormSchema),
+    defaultValues: {
+      title: '',
+      type: 'activity',
+      startTime: '',
+      durationMinutes: undefined,
+      locationName: '',
+    },
+  });
 
   // Reset selected day if days change
   useEffect(() => {
     setSelectedDayIndex(0);
   }, [days?.length]);
+
+  const handleCreateDaysManually = async () => {
+    if (!tripData || !user || !firestore) {
+        toast({ variant: "destructive", title: "Erreur", description: "Données du voyage non chargées." });
+        return;
+    }
+    const tripStartDate = tripData.startDate?.toDate();
+    const tripEndDate = tripData.endDate?.toDate();
+
+    if (!tripStartDate || !tripEndDate) {
+        toast({ variant: "destructive", title: "Erreur", description: "Les dates du voyage ne sont pas définies." });
+        return;
+    }
+
+    try {
+        const batch = writeBatch(firestore);
+        // Calculate number of days. Add 1 to include both start and end dates.
+        const diffTime = tripEndDate.getTime() - tripStartDate.getTime();
+        const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+        for (let i = 0; i <= diffDays; i++) {
+            const dayDate = new Date(tripStartDate);
+            dayDate.setDate(dayDate.getDate() + i);
+
+            const dayId = uuidv4();
+            const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', dayId);
+            const dayData = {
+                tripId: tripId,
+                date: dayDate,
+                orderIndex: i,
+                notes: "",
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            };
+            batch.set(dayRef, dayData);
+        }
+        await batch.commit();
+        toast({ title: "Jours créés !", description: "Vous pouvez maintenant ajouter des événements à chaque jour." });
+    } catch (error) {
+        console.error("Failed to create days:", error);
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible de créer la structure des jours." });
+    }
+  };
 
   const handleGenerateItinerary = async (dayIndex?: number) => {
     if (!tripData) {
@@ -118,7 +192,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         
         if (!user || !firestore) throw new Error("Utilisateur ou base de données non disponible.");
         if (days && days.length > 0) {
-            // This is a simple guard. A more robust solution would involve merging or clearing data.
             toast({
                 variant: "destructive",
                 title: "Itinéraire existant",
@@ -238,6 +311,50 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       description: `Le fichier "${newAttachment.filename}" a été ajouté.`,
     });
   };
+
+  const handleAddEvent = async (values: EventFormValues) => {
+    if (!user || !firestore || !selectedDay) {
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ajouter un événement. Aucun jour sélectionné." });
+        return;
+    }
+    
+    const orderIndex = events?.length || 0;
+
+    try {
+        const eventId = uuidv4();
+        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
+        
+        const eventData = {
+            dayId: selectedDay.id,
+            type: values.type,
+            title: values.title,
+            description: '',
+            startTime: values.startTime || null,
+            durationMinutes: values.durationMinutes || null,
+            locationName: values.locationName || '',
+            lat: null,
+            lng: null,
+            orderIndex: orderIndex,
+            isAiEnriched: false,
+            photos: [],
+            practicalInfo: JSON.stringify({}),
+            attachments: [],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(eventRef, eventData);
+        
+        toast({ title: "Événement ajouté !", description: `L'événement "${values.title}" a été ajouté.` });
+        setIsAddEventOpen(false);
+        eventForm.reset();
+
+    } catch (error) {
+        console.error("Error adding event:", error);
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ajouter l'événement." });
+    }
+  };
+
 
   const isLoading = isTripLoading || isDaysLoading;
 
@@ -398,6 +515,79 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                     <p className="text-slate-400">Aucun événement pour ce jour.</p>
                                 </Card>
                             )}
+                             {!isEventsLoading && (
+                                <div className="pt-4">
+                                    <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" className="w-full">
+                                                <PlusCircle className="mr-2 h-4 w-4" />
+                                                Ajouter un événement
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Ajouter un nouvel événement</DialogTitle>
+                                                <DialogDescription>
+                                                    Remplissez les détails de votre nouvel événement pour le {dayDate ? `Jour ${selectedDayIndex+1}`: ''}.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <Form {...eventForm}>
+                                                <form onSubmit={eventForm.handleSubmit(handleAddEvent)} className="space-y-4">
+                                                    <FormField control={eventForm.control} name="title" render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Titre</FormLabel>
+                                                            <FormControl><Input placeholder="Ex: Dîner au restaurant" {...field} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}/>
+                                                    <FormField control={eventForm.control} name="type" render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Type</FormLabel>
+                                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                                <FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un type" /></SelectTrigger></FormControl>
+                                                                <SelectContent>
+                                                                    <SelectItem value="activity">Activité</SelectItem>
+                                                                    <SelectItem value="visit">Visite</SelectItem>
+                                                                    <SelectItem value="meal">Repas</SelectItem>
+                                                                    <SelectItem value="transport">Transport</SelectItem>
+                                                                    <SelectItem value="accommodation">Hébergement</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}/>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <FormField control={eventForm.control} name="startTime" render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Heure de début</FormLabel>
+                                                                <FormControl><Input placeholder="HH:mm" {...field} /></FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}/>
+                                                        <FormField control={eventForm.control} name="durationMinutes" render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Durée (min)</FormLabel>
+                                                                <FormControl><Input type="number" placeholder="Ex: 60" {...field} /></FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}/>
+                                                    </div>
+                                                    <FormField control={eventForm.control} name="locationName" render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Lieu (optionnel)</FormLabel>
+                                                            <FormControl><Input placeholder="Nom ou addresse du lieu" {...field} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}/>
+                                                    <DialogFooter>
+                                                        <Button type="submit" disabled={eventForm.formState.isSubmitting}>Ajouter l'événement</Button>
+                                                    </DialogFooter>
+                                                </form>
+                                            </Form>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                            )}
                         </div>
                     </div>
                   </div>
@@ -410,20 +600,26 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 <div className="flex-grow flex items-center justify-center">
                      <Card className="col-span-full flex flex-col items-center justify-center p-12 border-dashed border-slate-700 bg-slate-800/20">
                         <h2 className="text-xl font-semibold mb-2">Prêt à planifier ?</h2>
-                        <p className="text-slate-400 mb-6">Générez un itinéraire pour commencer.</p>
-                        <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
-                            {isGenerating === 'full' ? (
-                                <>
-                                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                Génération en cours...
-                                </>
-                            ) : (
-                                <>
-                                <Bot className="mr-2 h-4 w-4" />
-                                Générer tout l'itinéraire
-                                </>
-                            )}
-                        </Button>
+                        <p className="text-slate-400 mb-6">Choisissez une option pour commencer à remplir votre itinéraire.</p>
+                        <div className="flex gap-4">
+                            <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
+                                {isGenerating === 'full' ? (
+                                    <>
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Génération...
+                                    </>
+                                ) : (
+                                    <>
+                                    <Bot className="mr-2 h-4 w-4" />
+                                    Générer avec l'IA
+                                    </>
+                                )}
+                            </Button>
+                             <Button variant="outline" onClick={handleCreateDaysManually}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Commencer manuellement
+                            </Button>
+                        </div>
                      </Card>
                 </div>
             )}
