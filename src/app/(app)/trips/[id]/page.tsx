@@ -6,7 +6,7 @@ import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2 } from 'lucide-react';
+import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import EventCard, { type Event as EventType } from '@/components/app/event-card'; // Import Event type from card
 import TripInfo from '@/components/app/trip-info';
@@ -51,27 +51,32 @@ const initialTrip = {
 export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [trip, setTrip] = useState(initialTrip);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState<'full' | 'day' | false>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const dayEvents = trip.days[selectedDay]?.events || [];
   const dayDate = trip.days[selectedDay]?.date;
 
-  const handleGenerateItinerary = async () => {
-    setIsGenerating(true);
+  const handleGenerateItinerary = async (dayIndex?: number) => {
+    const generationType = typeof dayIndex === 'number' ? 'day' : 'full';
+    setIsGenerating(generationType);
     setGenerationError(null);
 
     const mockTravelers = { adults: 2, children: [], hasPets: false };
     const mockPreferences = { pace: 50, budget: 50, interests: ['culture', 'gastronomy'], accessibility: [], dietary: [], alreadyVisited: [], mustSee: [] };
+
+    const isSingleDay = typeof dayIndex === 'number';
+    const startDate = isSingleDay ? format(trip.days[dayIndex!].date, 'yyyy-MM-dd') : trip.startDate;
+    const endDate = isSingleDay ? format(trip.days[dayIndex!].date, 'yyyy-MM-dd') : trip.endDate;
 
     try {
         const input: GenerateItineraryInput = {
             tripId: trip.id,
             title: trip.title,
             destinations: trip.destinations,
-            startDate: trip.startDate,
-            endDate: trip.endDate,
+            startDate: startDate,
+            endDate: endDate,
             travelers: mockTravelers,
             preferences: mockPreferences,
         };
@@ -79,24 +84,43 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         const generatedItinerary = await generateTripItinerary(input);
 
         setTrip(currentTrip => {
-            const newDays = currentTrip.days.map(day => {
-                const dayString = format(day.date, 'yyyy-MM-dd');
-                const generatedDay = generatedItinerary.find(genDay => genDay.date === dayString);
+            if (isSingleDay) {
+                 const newDays = [...currentTrip.days];
+                 const dayToUpdate = newDays[dayIndex];
+                 const dayString = format(dayToUpdate.date, 'yyyy-MM-dd');
+                 const generatedDay = generatedItinerary.find(genDay => genDay.date === dayString);
 
-                if (generatedDay) {
-                    return {
-                        ...day,
-                        events: generatedDay.events.map((event, index) => ({
-                            ...event,
-                            id: `gen-event-${day.id}-${index}`,
-                            isAiEnriched: false, 
-                        })),
-                    };
-                }
-                return day;
-            });
+                 if (generatedDay) {
+                     newDays[dayIndex] = {
+                         ...dayToUpdate,
+                         events: generatedDay.events.map((event, index) => ({
+                             ...event,
+                             id: `gen-event-${dayToUpdate.id}-${index}`,
+                             isAiEnriched: false, 
+                         })),
+                     };
+                 }
+                 return { ...currentTrip, days: newDays };
 
-            return { ...currentTrip, days: newDays };
+            } else {
+                const newDays = currentTrip.days.map(day => {
+                    const dayString = format(day.date, 'yyyy-MM-dd');
+                    const generatedDay = generatedItinerary.find(genDay => genDay.date === dayString);
+
+                    if (generatedDay) {
+                        return {
+                            ...day,
+                            events: generatedDay.events.map((event, index) => ({
+                                ...event,
+                                id: `gen-event-${day.id}-${index}`,
+                                isAiEnriched: false, 
+                            })),
+                        };
+                    }
+                    return day;
+                });
+                return { ...currentTrip, days: newDays };
+            }
         });
 
     } catch (error) {
@@ -190,8 +214,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 <Share2 className="mr-2 h-4 w-4" />
                 Partager
                 </Button>
-                <Button onClick={handleGenerateItinerary} disabled={isGenerating}>
-                {isGenerating ? (
+                <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
+                {isGenerating === 'full' ? (
                     <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                     Génération en cours...
@@ -199,7 +223,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 ) : (
                     <>
                     <Bot className="mr-2 h-4 w-4" />
-                    Générer l'itinéraire
+                    Générer tout l'itinéraire
                     </>
                 )}
                 </Button>
@@ -253,8 +277,26 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                            dayEvents.map(event => <EventCard key={event.id} event={event} onEnrich={handleEnrichEvent} />)
                         ) : (
                             <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
-                                <p className="text-slate-400">Aucun événement pour ce jour. Cliquez sur "Générer l'itinéraire" pour commencer.</p>
-                                <Button className="mt-4">Ajouter un événement</Button>
+                                <p className="text-slate-400">Aucun événement pour ce jour.</p>
+                                <div className="mt-4 flex justify-center items-center gap-4">
+                                  <Button onClick={() => handleGenerateItinerary(selectedDay)} disabled={isGenerating !== false}>
+                                    {isGenerating === 'day' ? (
+                                        <>
+                                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                            Génération...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Bot className="mr-2 h-4 w-4" />
+                                            Générer la journée
+                                        </>
+                                    )}
+                                  </Button>
+                                  <Button variant="outline">
+                                      <PlusCircle className="mr-2 h-4 w-4" />
+                                      Ajouter manuellement
+                                  </Button>
+                                </div>
                             </Card>
                         )}
                     </div>
