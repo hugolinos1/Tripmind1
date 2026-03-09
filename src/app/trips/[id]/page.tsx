@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -165,6 +166,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
       
       const eventData = {
+        id: eventId, // explicit ID for client-side state updates
         dayId: selectedDay.id,
         type: values.type,
         title: values.title,
@@ -686,7 +688,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
   if (isLoading) {
     return (
-        <div className="flex flex-col h-screen bg-bg-dark">
+        <div className="flex flex-col min-h-screen bg-bg-dark">
             <AppHeader />
              <header className="container mx-auto px-6 py-4 flex items-center justify-between border-b border-slate-800">
                 <Skeleton className="h-12 w-1/3" />
@@ -711,10 +713,10 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const dayEvents = events || [];
 
   return (
-    <div className="flex flex-col h-screen bg-bg-dark">
+    <div className="flex flex-col min-h-screen bg-bg-dark">
       <AppHeader />
 
-      <div className="flex-grow flex flex-col overflow-hidden">
+      <div className="flex-grow flex flex-col lg:overflow-hidden">
         {/* Trip Header */}
         <header className="container mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
           <div className="flex items-center gap-4">
@@ -764,7 +766,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </div>
         </header>
 
-        <Tabs defaultValue="itinerary" className="flex-grow flex flex-col overflow-hidden">
+        <Tabs defaultValue="itinerary" className="flex-grow flex flex-col lg:overflow-hidden">
           <div className="container mx-auto px-6 border-b border-slate-800">
             <TabsList className="p-0 bg-transparent -mb-px">
               <TabsTrigger value="itinerary" className="text-base rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent">
@@ -776,7 +778,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             </TabsList>
           </div>
 
-          <TabsContent value="itinerary" className="flex-grow flex flex-col overflow-hidden bg-slate-900/50">
+          <TabsContent value="itinerary" className="flex-grow flex flex-col lg:overflow-hidden bg-slate-900/50">
             {days && days.length > 0 ? (
               <>
                 {/* Day Selector */}
@@ -812,7 +814,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                     </div>
                 </div>
                 
-                <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 overflow-hidden">
+                <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 lg:overflow-hidden">
                   <div className="flex flex-col bg-bg-dark lg:overflow-y-auto">
                     <div className="p-6">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
@@ -954,7 +956,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                         </div>
                     </div>
                   </div>
-                  <div className="bg-bg-dark h-full min-h-[300px] lg:min-h-0 relative">
+                  <div className="bg-bg-dark h-[50vh] min-h-[300px] lg:h-full lg:min-h-0 relative">
                     <MapView events={dayEvents} day={selectedDay} />
                   </div>
                 </div>
@@ -994,7 +996,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         </Tabs>
       </div>
       <Dialog open={isEventFormOpen} onOpenChange={setIsEventFormOpen}>
-          <DialogContent>
+          <DialogContent className="z-[60]">
               <DialogHeader>
                   <DialogTitle>{currentEvent ? "Modifier l'événement" : 'Ajouter un nouvel événement'}</DialogTitle>
                   <DialogDescription>
