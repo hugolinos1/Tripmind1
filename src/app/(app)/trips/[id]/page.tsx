@@ -136,14 +136,13 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     if ((field === 'start' && value === selectedDay.startLocationName) || (field === 'end' && value === selectedDay.endLocationName)) return;
 
     toast({ title: "Mise à jour...", description: "Enregistrement du lieu." });
+    
+    const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
 
     if (field === 'start') {
-        const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
         updateDocumentNonBlocking(dayRef, { startLocationName: value, startLat: null, startLng: null });
     } else { // field === 'end'
-        const currentDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
-        updateDocumentNonBlocking(currentDayRef, { endLocationName: value, endLat: null, endLng: null });
-
+        updateDocumentNonBlocking(dayRef, { endLocationName: value, endLat: null, endLng: null });
         const nextDay = days?.[selectedDayIndex + 1];
         if (nextDay) {
             const nextDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', nextDay.id);
@@ -822,7 +821,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                     </div>
                   </div>
                   <div className="bg-bg-dark h-full min-h-[300px] lg:min-h-0">
-                    <MapView events={dayEvents} />
+                    <MapView events={dayEvents} day={selectedDay} />
                   </div>
                 </div>
               </>

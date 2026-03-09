@@ -11,6 +11,8 @@ const eventTypeColors = {
   transport: '#0ea5e9',
   accommodation: '#10b981',
   activity: '#a855f7',
+  start: '#22c55e', // green-500
+  end: '#ef4444',   // red-500
 };
 
 type Event = {
@@ -23,9 +25,17 @@ type Event = {
 
 interface MapViewProps {
   events: Event[];
+  day?: {
+    startLocationName?: string;
+    endLocationName?: string;
+    startLat?: number;
+    startLng?: number;
+    endLat?: number;
+    endLng?: number;
+  }
 }
 
-const getMarkerIcon = (color: string, index: number) => {
+const getMarkerIcon = (color: string, index: number | string) => {
     return L.divIcon({
         className: 'custom-div-icon',
         html: `<div style="background-color:${color};" class="marker-pin"><span>${index}</span></div>`,
@@ -77,12 +87,20 @@ function MapBoundsUpdater({ bounds }: { bounds: L.LatLngBounds | null }) {
   return null;
 }
 
-const MapView = ({ events }: MapViewProps) => {
+const MapView = ({ events, day }: MapViewProps) => {
   const position: L.LatLngExpression = [35.6895, 139.6917]; // Default to Tokyo
   const validEvents = events.filter(e => e.lat != null && e.lng != null);
 
-  const bounds = validEvents.length > 0 
-    ? L.latLngBounds(validEvents.map(e => [e.lat!, e.lng!])) 
+  const pointsForBounds: { lat: number; lng: number }[] = validEvents.map(e => ({ lat: e.lat!, lng: e.lng! }));
+  if (day?.startLat && day.startLng) {
+    pointsForBounds.push({ lat: day.startLat, lng: day.startLng });
+  }
+  if (day?.endLat && day.endLng) {
+    pointsForBounds.push({ lat: day.endLat, lng: day.endLng });
+  }
+
+  const bounds = pointsForBounds.length > 0
+    ? L.latLngBounds(pointsForBounds.map(p => [p.lat, p.lng]))
     : null;
 
   return (
@@ -107,6 +125,24 @@ const MapView = ({ events }: MapViewProps) => {
             <Popup>{event.title}</Popup>
           </Marker>
         ))}
+        {day?.startLat && day.startLng && (
+          <Marker
+            key="start-marker"
+            position={[day.startLat, day.startLng]}
+            icon={getMarkerIcon(eventTypeColors.start, "D")}
+          >
+            <Popup>{day.startLocationName || "Lieu de départ"}</Popup>
+          </Marker>
+        )}
+        {day?.endLat && day.endLng && (
+          <Marker
+            key="end-marker"
+            position={[day.endLat, day.endLng]}
+            icon={getMarkerIcon(eventTypeColors.end, "A")}
+          >
+            <Popup>{day.endLocationName || "Lieu d'arrivée"}</Popup>
+          </Marker>
+        )}
         <MapBoundsUpdater bounds={bounds} />
       </MapContainer>
     </div>
