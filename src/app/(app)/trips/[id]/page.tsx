@@ -134,10 +134,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const handleLocationUpdate = (field: 'start' | 'end', value: string) => {
     if (!user || !firestore || !selectedDay) return;
     
-    if ((field === 'start' && value === selectedDay.startLocationName) || (field === 'end' && value === selectedDay.endLocationName)) return;
-
-    toast({ title: "Mise à jour...", description: "Enregistrement du lieu." });
-    
     const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id);
 
     const updateData: { [key: string]: any } = {};
@@ -238,27 +234,34 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         const diffTime = tripEndDate.getTime() - tripStartDate.getTime();
         const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
+        let lastEndLocation = "";
+        let lastEndLat = null;
+        let lastEndLng = null;
+
         for (let i = 0; i <= diffDays; i++) {
             const dayDate = new Date(tripStartDate);
             dayDate.setDate(dayDate.getDate() + i);
 
             const dayId = uuidv4();
             const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', dayId);
+            
             const dayData = {
                 tripId: tripId,
                 date: dayDate,
                 orderIndex: i,
                 notes: "",
-                startLocationName: "",
+                startLocationName: lastEndLocation,
                 endLocationName: "",
-                startLat: null,
-                startLng: null,
+                startLat: lastEndLat,
+                startLng: lastEndLng,
                 endLat: null,
                 endLng: null,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
             batch.set(dayRef, dayData);
+            // For the next day, the start location will be this day's end location.
+            // Since end location is initially empty, this will be handled by user input later.
         }
         await batch.commit();
         toast({ title: "Jours créés !", description: "Vous pouvez maintenant ajouter des événements à chaque jour." });
@@ -599,7 +602,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     }
   };
 
-  const handleDeleteEvent = (eventId: string) => {
+  const handleDeleteEvent = async (eventId: string) => {
     if (!user || !firestore || !selectedDay || !events) {
       toast({
         variant: "destructive",
@@ -620,26 +623,30 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
     batch.delete(eventRef);
 
-    const eventsToUpdate = events.filter(e => e.orderIndex > eventToDelete.orderIndex);
+    // Re-order subsequent events
+    const eventsToUpdate = events
+        .filter(e => e.orderIndex > eventToDelete.orderIndex)
+        .sort((a,b) => a.orderIndex - b.orderIndex);
 
     eventsToUpdate.forEach(event => {
         const subsequentEventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', event.id);
         batch.update(subsequentEventRef, { orderIndex: event.orderIndex - 1, updatedAt: serverTimestamp() });
     });
 
-    batch.commit().then(() => {
+    try {
+        await batch.commit();
         toast({
             title: "Événement supprimé",
             description: "L'itinéraire a été mis à jour.",
         });
-    }).catch(error => {
+    } catch(error) {
         console.error("Error deleting event and reordering:", error);
         toast({
             variant: "destructive",
             title: "Erreur de suppression",
             description: "Impossible de mettre à jour l'itinéraire. Veuillez réessayer.",
         });
-    });
+    }
   };
 
 
@@ -979,7 +986,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                         </div>
                     </div>
                   </div>
-                  <div className="bg-bg-dark h-full min-h-[300px] lg:min-h-0">
+                  <div className="bg-bg-dark h-full min-h-[300px] lg:min-h-0 relative z-0">
                     <MapView events={dayEvents} day={selectedDay} />
                   </div>
                 </div>
