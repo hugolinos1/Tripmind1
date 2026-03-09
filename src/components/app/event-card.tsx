@@ -6,7 +6,7 @@ import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Tra
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
@@ -41,6 +41,7 @@ export interface Event {
 interface EventCardProps {
     event: Event;
     onEnrich: (eventId: string) => Promise<void>;
+    onAddAttachment: (eventId: string, attachment: Attachment) => void;
 }
 
 const eventTypeConfig = {
@@ -51,8 +52,9 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-const EventCard = ({ event, onEnrich }: EventCardProps) => {
+const EventCard = ({ event, onEnrich, onAddAttachment }: EventCardProps) => {
   const [isEnriching, setIsEnriching] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const config = eventTypeConfig[event.type] || eventTypeConfig.activity;
   const Icon = config.icon;
   
@@ -61,11 +63,31 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
     try {
         await onEnrich(event.id);
     } catch (error) {
-        // Error is handled by parent (toast), just log it here for debugging
+        // Error is handled by parent (toast)
         console.error("Enrichment failed in EventCard:", error);
     } finally {
         setIsEnriching(false);
     }
+  };
+
+  const handleAddAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const newAttachment: Attachment = {
+              id: `attach-${Date.now()}-${Math.random()}`, // simple unique id
+              filename: file.name,
+              category: 'other', // default category
+          };
+          onAddAttachment(event.id, newAttachment);
+      }
+      // Reset file input to allow selecting the same file again
+      if (e.target) {
+          e.target.value = '';
+      }
   };
 
   const hasPracticalInfo = event.practicalInfo && (event.practicalInfo.openingHours || event.practicalInfo.price || event.practicalInfo.tips || event.practicalInfo.website);
@@ -73,6 +95,7 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
 
   return (
     <Card className={`border-l-4 ${config.color} border-y-slate-800 border-r-slate-800 bg-slate-800/30 group hover:bg-slate-800/60 transition-colors`}>
+      <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
       <CardContent className="p-4 flex gap-4 items-start">
         <div className="flex-grow">
           <div className="flex justify-between items-start mb-2">
@@ -126,7 +149,7 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
                           <DropdownMenuItem disabled>Aucune pièce jointe</DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onSelect={handleAddAttachmentClick} className="cursor-pointer">
                           <PlusCircle className="mr-2 h-4 w-4" />
                           <span>Ajouter une pièce jointe</span>
                       </DropdownMenuItem>

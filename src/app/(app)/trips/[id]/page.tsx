@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import EventCard, { type Event as EventType } from '@/components/app/event-card'; // Import Event type from card
+import EventCard, { type Event as EventType, type Attachment } from '@/components/app/event-card'; // Import Event type from card
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -84,8 +84,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         const generatedItinerary = await generateTripItinerary(input);
 
         setTrip(currentTrip => {
-            if (isSingleDay) {
-                 const newDays = [...currentTrip.days];
+            const newDays = [...currentTrip.days];
+            if (isSingleDay && typeof dayIndex === 'number') {
                  const dayToUpdate = newDays[dayIndex];
                  const dayString = format(dayToUpdate.date, 'yyyy-MM-dd');
                  const generatedDay = generatedItinerary.find(genDay => genDay.date === dayString);
@@ -100,27 +100,23 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                          })),
                      };
                  }
-                 return { ...currentTrip, days: newDays };
-
             } else {
-                const newDays = currentTrip.days.map(day => {
-                    const dayString = format(day.date, 'yyyy-MM-dd');
-                    const generatedDay = generatedItinerary.find(genDay => genDay.date === dayString);
-
-                    if (generatedDay) {
-                        return {
-                            ...day,
+                generatedItinerary.forEach(generatedDay => {
+                    const dayIndexToUpdate = newDays.findIndex(d => format(d.date, 'yyyy-MM-dd') === generatedDay.date);
+                    if (dayIndexToUpdate !== -1) {
+                        const dayToUpdate = newDays[dayIndexToUpdate];
+                        newDays[dayIndexToUpdate] = {
+                            ...dayToUpdate,
                             events: generatedDay.events.map((event, index) => ({
                                 ...event,
-                                id: `gen-event-${day.id}-${index}`,
-                                isAiEnriched: false, 
+                                id: `gen-event-${dayToUpdate.id}-${index}`,
+                                isAiEnriched: false,
                             })),
                         };
                     }
-                    return day;
                 });
-                return { ...currentTrip, days: newDays };
             }
+            return { ...currentTrip, days: newDays };
         });
 
     } catch (error) {
@@ -183,6 +179,32 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         // Re-throw to be caught by the card's local handler if needed
         throw error;
     }
+  };
+
+  const handleAddAttachment = (eventId: string, newAttachment: Attachment) => {
+    setTrip(currentTrip => {
+        const newDays = currentTrip.days.map(day => {
+            const eventIndex = day.events.findIndex(e => e.id === eventId);
+            if (eventIndex > -1) {
+                const updatedEvents = [...day.events];
+                const eventToUpdate = { ...updatedEvents[eventIndex] };
+                
+                eventToUpdate.attachments = [...(eventToUpdate.attachments || []), newAttachment];
+                updatedEvents[eventIndex] = eventToUpdate;
+
+                return { ...day, events: updatedEvents };
+            }
+            return day;
+        });
+
+        const newTrip = { ...currentTrip, days: newDays };
+        return newTrip;
+    });
+
+    toast({
+      title: "Pièce jointe ajoutée",
+      description: `Le fichier "${newAttachment.filename}" a été ajouté.`,
+    });
   };
 
 
@@ -274,7 +296,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                     </h2>
                     <div className="space-y-4">
                         {dayEvents.length > 0 ? (
-                           dayEvents.map(event => <EventCard key={event.id} event={event} onEnrich={handleEnrichEvent} />)
+                           dayEvents.map(event => <EventCard key={event.id} event={event} onEnrich={handleEnrichEvent} onAddAttachment={handleAddAttachment} />)
                         ) : (
                             <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
                                 <p className="text-slate-400">Aucun événement pour ce jour.</p>
