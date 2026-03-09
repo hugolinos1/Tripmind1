@@ -349,7 +349,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                             >
                                 <CarouselContent className="-ml-2">
                                     {days.map((day, index) => {
-                                        const date = day.date?.seconds ? new Date(day.date.seconds * 1000) : null;
                                         return (
                                             <CarouselItem key={day.id} className="basis-auto pl-2">
                                                 <Button
@@ -358,11 +357,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                                     onClick={() => setSelectedDayIndex(index)}
                                                 >
                                                     Jour {day.orderIndex + 1}
-                                                    {date && (
-                                                        <span className="ml-2 text-xs opacity-70">
-                                                            {format(date, 'd MMM', { locale: fr })}
-                                                        </span>
-                                                    )}
                                                 </Button>
                                             </CarouselItem>
                                         )
