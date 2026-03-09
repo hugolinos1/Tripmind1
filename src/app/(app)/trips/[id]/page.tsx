@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { generateTripItinerary, type GenerateItineraryInput } from '@/ai/flows/ai-generate-trip-itinerary';
 
-const MapView = dynamic(() => import('@/components/app/map-view'), {
+const MapView = dynamic(() => import('../../../../components/app/map-view'), {
   ssr: false,
   loading: () => <div className="bg-slate-800 animate-pulse w-full h-full" />,
 });
