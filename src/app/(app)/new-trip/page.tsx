@@ -21,6 +21,8 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 
 const formSchema = z.object({
   title: z.string().min(3, { message: 'Le titre doit contenir au moins 3 caractères.' }),
@@ -32,6 +34,12 @@ const formSchema = z.object({
     message: "La date de fin doit être après la date de début.",
     path: ["to"],
   }),
+  adults: z.coerce.number().min(1, { message: "Il doit y avoir au moins un adulte." }),
+  childrenAges: z.string().optional(),
+  hasPets: z.boolean().default(false),
+  pace: z.number().min(0).max(100),
+  budget: z.number().min(0).max(100),
+  interests: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -54,6 +62,12 @@ export default function NewTripPage() {
     defaultValues: {
       title: '',
       destinations: '',
+      adults: 1,
+      childrenAges: '',
+      hasPets: false,
+      pace: 50,
+      budget: 50,
+      interests: '',
     },
   });
 
@@ -76,8 +90,16 @@ export default function NewTripPage() {
         destinations: values.destinations.split(',').map(d => d.trim()),
         startDate: values.dateRange.from,
         endDate: values.dateRange.to || values.dateRange.from,
-        travelers: JSON.stringify({ adults: 1, children: [], hasPets: false }),
-        preferences: JSON.stringify({ pace: 50, budget: 50, interests: [] }),
+        travelers: JSON.stringify({ 
+            adults: values.adults, 
+            children: values.childrenAges?.split(',').map(a => a.trim()).filter(a => a) || [], 
+            hasPets: values.hasPets 
+        }),
+        preferences: JSON.stringify({ 
+            pace: values.pace, 
+            budget: values.budget, 
+            interests: values.interests?.split(',').map(i => i.trim()).filter(i => i) || [] 
+        }),
         status: 'draft',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -124,33 +146,35 @@ export default function NewTripPage() {
             <CardContent>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <FormField
-                            control={form.control}
-                            name="title"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Titre du voyage</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Ex: Aventure au Japon" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="destinations"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Destinations</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Paris, Lyon, Marseille" {...field} />
-                                    </FormControl>
-                                    <CardDescription className="text-xs pt-1">Séparez plusieurs destinations par une virgule.</CardDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <FormField
+                              control={form.control}
+                              name="title"
+                              render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Titre du voyage</FormLabel>
+                                      <FormControl>
+                                          <Input placeholder="Ex: Aventure au Japon" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                          <FormField
+                              control={form.control}
+                              name="destinations"
+                              render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Destinations</FormLabel>
+                                      <FormControl>
+                                          <Input placeholder="Paris, Lyon, Marseille" {...field} />
+                                      </FormControl>
+                                      <CardDescription className="text-xs pt-1">Séparez plusieurs destinations par une virgule.</CardDescription>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                        </div>
                          <FormField
                           control={form.control}
                           name="dateRange"
@@ -199,6 +223,123 @@ export default function NewTripPage() {
                           )}
                         />
 
+                        {/* Voyageurs */}
+                        <div className="space-y-4 rounded-lg border border-slate-700 p-4">
+                          <h3 className="text-lg font-medium">Voyageurs</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="adults"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Adultes</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" min="1" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="childrenAges"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Âges des enfants</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Ex: 5, 8" {...field} />
+                                  </FormControl>
+                                  <CardDescription className="text-xs pt-1">Séparez les âges par une virgule.</CardDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name="hasPets"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border border-slate-700/50 p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                  <FormLabel>Animaux de compagnie</FormLabel>
+                                  <CardDescription className="text-xs">
+                                    Voyagez-vous avec des animaux ?
+                                  </CardDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {/* Préférences */}
+                        <div className="space-y-6 rounded-lg border border-slate-700 p-4">
+                          <h3 className="text-lg font-medium">Préférences de voyage</h3>
+                          <FormField
+                            control={form.control}
+                            name="pace"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Rythme du voyage</FormLabel>
+                                <FormControl>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-xs text-muted-foreground">Détendu</span>
+                                        <Slider
+                                            value={[field.value]}
+                                            onValueChange={(value) => field.onChange(value[0])}
+                                            max={100}
+                                            step={1}
+                                        />
+                                        <span className="text-xs text-muted-foreground">Intense</span>
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="budget"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Budget</FormLabel>
+                                <FormControl>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-xs text-muted-foreground">Économique</span>
+                                        <Slider
+                                            value={[field.value]}
+                                            onValueChange={(value) => field.onChange(value[0])}
+                                            max={100}
+                                            step={1}
+                                        />
+                                        <span className="text-xs text-muted-foreground">Luxe</span>
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                              control={form.control}
+                              name="interests"
+                              render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Centres d'intérêt</FormLabel>
+                                      <FormControl>
+                                          <Input placeholder="Culture, gastronomie, nature..." {...field} />
+                                      </FormControl>
+                                      <CardDescription className="text-xs pt-1">Séparez plusieurs intérêts par une virgule.</CardDescription>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                            />
+                        </div>
+
                         <div className="flex justify-end pt-4">
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting ? (
@@ -219,3 +360,5 @@ export default function NewTripPage() {
     </div>
   );
 }
+
+    
