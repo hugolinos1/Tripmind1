@@ -32,9 +32,6 @@ export default function LandingPage() {
             <Button variant="ghost" asChild>
               <Link href="/login">Se connecter</Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link href="/test-ai">Tester l'IA</Link>
-            </Button>
             <Button asChild>
               <Link href="/dashboard">Commencer gratuitement</Link>
             </Button>
@@ -51,7 +48,6 @@ export default function LandingPage() {
               <SheetContent side="right" className="bg-slate-900/95 backdrop-blur-sm border-slate-700 w-[240px] sm:w-sm">
                 <nav className="flex flex-col items-center justify-center h-full space-y-6 text-lg">
                   <Link href="/login" className="hover:text-primary transition-colors">Se connecter</Link>
-                  <Link href="/test-ai" className="hover:text-primary transition-colors">Tester l'IA</Link>
                   <Button asChild size="lg" className="w-full max-w-[200px] mt-4">
                     <Link href="/dashboard">Commencer</Link>
                   </Button>
