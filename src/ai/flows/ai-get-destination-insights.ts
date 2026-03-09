@@ -27,27 +27,6 @@ Provide detailed, practical, and engaging information about the following topic:
 Generate the content for the "**${input.sectionLabel}**" section.
 `;
 
-function extractJson(text: string): any | null {
-    // This is a fallback in case the model wraps the response in markdown
-    const match = text.match(/```json\n([\s\S]*?)\n```/);
-    if (match && match[1]) {
-        try {
-            return JSON.parse(match[1]);
-        } catch (e) {
-            console.error("Failed to parse JSON from AI response markdown", e);
-            return null;
-        }
-    }
-    // Or it might be a raw JSON string
-    try {
-        return JSON.parse(text);
-    } catch (e) {
-        // Not a raw JSON string
-    }
-
-    return null;
-}
-
 export async function getDestinationInsights(input: GetDestinationInsightsInput): Promise<GetDestinationInsightsOutput> {
     const apiKey = process.env.OPENROUTER_API_KEY;
 

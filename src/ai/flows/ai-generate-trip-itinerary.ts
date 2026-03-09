@@ -48,54 +48,35 @@ You are an expert travel planner AI. Your task is to generate a detailed day-by-
 1.  Create a plausible and engaging itinerary for the entire duration of the trip.
 2.  Each day should have a series of events (activities, meals, transport, etc.).
 3.  For each event, provide a type, title, start time, and other relevant details like location.
-4.  The final output MUST be a valid JSON array of objects, where each object represents a day. Do not include any text, markdown, or explanations outside of the JSON structure.
+4.  The final output MUST be a valid JSON object with a single key "itinerary" that contains an array of day objects. Do not include any text, markdown, or explanations outside of the JSON structure.
 
 **JSON Output Schema:**
-The output must be a JSON array with the following structure:
-\'\'\'json
-[
-  {
-    "date": "YYYY-MM-DD",
-    "location": "City, Country",
-    "events": [
-      {
-        "type": "activity",
-        "title": "Event Title",
-        "startTime": "HH:mm",
-        "durationMinutes": 60,
-        "description": "Brief description of the event.",
-        "locationName": "Specific location name",
-        "lat": 48.8584,
-        "lng": 2.2945
-      }
-    ]
-  }
-]
-\'\'\'
+The output must be a JSON object with the following structure:
+\`\`\`json
+{
+  "itinerary": [
+    {
+      "date": "YYYY-MM-DD",
+      "location": "City, Country",
+      "events": [
+        {
+          "type": "activity",
+          "title": "Event Title",
+          "startTime": "HH:mm",
+          "durationMinutes": 60,
+          "description": "Brief description of the event.",
+          "locationName": "Specific location name",
+          "lat": 48.8584,
+          "lng": 2.2945
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
 
 Now, generate the itinerary for the trip described above.
 `;
-
-function extractJson(text: string): any | null {
-  const match = text.match(/```json\n([\s\S]*?)\n```/);
-  if (match && match[1]) {
-    try {
-      return JSON.parse(match[1]);
-    } catch (e) {
-      console.error("Failed to parse JSON from AI response", e);
-      return null;
-    }
-  }
-  // Fallback for raw JSON
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    // Not a raw JSON string
-  }
-
-  return null;
-}
-
 
 export async function generateTripItinerary(input: GenerateItineraryInput): Promise<GenerateItineraryOutput> {
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -132,15 +113,20 @@ export async function generateTripItinerary(input: GenerateItineraryInput): Prom
             throw new Error("Réponse vide ou malformée reçue d'OpenRouter.");
         }
 
-        const jsonData = extractJson(message);
-
-        if (!jsonData) {
-            console.error("Could not extract JSON from response:", message);
+        let jsonData: any;
+        try {
+            jsonData = JSON.parse(message);
+        } catch (e) {
+            console.error("Could not parse JSON from response:", message);
             throw new Error("La réponse de l'IA n'a pas pu être analysée comme un JSON valide.");
         }
 
-        // Basic validation can be added here if needed
-        return jsonData as GenerateItineraryOutput;
+        if (!jsonData.itinerary) {
+            console.error("JSON response is missing 'itinerary' key:", jsonData);
+            throw new Error("La réponse de l'IA ne contient pas d'itinéraire valide.");
+        }
+
+        return jsonData.itinerary as GenerateItineraryOutput;
 
     } catch (e: any) {
         console.error("Erreur lors de la génération de l'itinéraire:", e);

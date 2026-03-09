@@ -47,14 +47,11 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
   
   const handleEnrich = async () => {
     setIsEnriching(true);
-    try {
-        await onEnrich(event.id);
-    } catch (error) {
-        console.error("Failed to enrich event", error);
-        // Optionally show a toast notification here
-    } finally {
+    // The parent's onEnrich function handles toasts and errors.
+    // We just need to ensure the loading state is reset.
+    onEnrich(event.id).finally(() => {
         setIsEnriching(false);
-    }
+    });
   };
 
   const hasPracticalInfo = event.practicalInfo && (event.practicalInfo.openingHours || event.practicalInfo.price || event.practicalInfo.tips);

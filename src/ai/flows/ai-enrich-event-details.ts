@@ -38,12 +38,12 @@ ${input.description ? `- **Current Description:** ${input.description}` : ''}
 
 **Instructions:**
 1.  **Rewrite and expand the description.** Make it more engaging, inspiring, and useful for a traveler. Provide context and what to expect. The language must be French.
-2.  **Find practical information.** Research and provide details like opening hours, prices, and insider tips.
+2.  **Find practical information.** Research and provide details like opening hours, prices, and insider tips. For fields where no information can be found, return an empty string.
 3.  **Format the output as a valid JSON object.** Do not include any text, markdown, or explanations outside of the JSON structure.
 
 **JSON Output Schema:**
 The output must be a JSON object that strictly follows this Zod schema:
-\'\'\'json
+\`\`\`json
 {
   "description": "A detailed, engaging description for the event. Write it in French.",
   "practicalInfo": {
@@ -52,28 +52,10 @@ The output must be a JSON object that strictly follows this Zod schema:
     "tips": "Actionable tips for visitors in French."
   }
 }
-\'\'\'
+\`\`\`
 
 Now, generate the enriched content for the event described above.
 `;
-
-function extractJson(text: string): any | null {
-  const match = text.match(/```json\n([\s\S]*?)\n```/);
-  if (match && match[1]) {
-    try {
-      return JSON.parse(match[1]);
-    } catch (e) {
-      console.error("Failed to parse JSON from AI response markdown", e);
-      return null;
-    }
-  }
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    // Not a raw JSON string
-  }
-  return null;
-}
 
 export async function enrichEventDetails(input: EnrichEventInput): Promise<EnrichEventOutput> {
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -110,10 +92,11 @@ export async function enrichEventDetails(input: EnrichEventInput): Promise<Enric
             throw new Error("Réponse vide ou malformée reçue d'OpenRouter.");
         }
         
-        const jsonData = extractJson(message);
-        
-        if (!jsonData) {
-            console.error("Could not extract JSON from response:", message);
+        let jsonData: any;
+        try {
+            jsonData = JSON.parse(message);
+        } catch (e) {
+            console.error("Could not parse JSON from response:", message);
             throw new Error("La réponse de l'IA n'a pas pu être analysée comme un JSON valide.");
         }
 
