@@ -137,7 +137,7 @@ export default function DashboardPage() {
     <div className="flex flex-col min-h-screen bg-bg-dark">
       <AppHeader />
       <main className="flex-1 container mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <h1 className="text-3xl font-bold font-headline">Mes Voyages</h1>
           <Button asChild>
             <Link href="/new-trip">

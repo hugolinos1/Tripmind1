@@ -11,8 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { CreditCard, LogOut, Settings, User } from 'lucide-react';
-import { Logo } from '../logo';
+import { CreditCard, LogOut, Settings, User, Plane } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Skeleton } from '../ui/skeleton';
@@ -21,7 +20,10 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-700/50 bg-slate-900/80 glass">
       <div className="container mx-auto flex h-16 items-center justify-between px-6">
-        <Logo />
+        <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold font-headline">
+          <Plane className="h-6 w-6 text-primary" />
+          <span className="hidden sm:inline">TripMind</span>
+        </Link>
         <UserNav />
       </div>
     </header>

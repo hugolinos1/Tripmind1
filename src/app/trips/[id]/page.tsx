@@ -716,7 +716,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
       <div className="flex-grow flex flex-col overflow-hidden">
         {/* Trip Header */}
-        <header className="container mx-auto px-6 py-4 flex items-center justify-between border-b border-slate-800">
+        <header className="container mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" asChild>
               <Link href="/dashboard">
@@ -733,7 +733,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             </div>
           </div>
           <div className="flex flex-col items-end">
-             <div className="flex items-center gap-2">
+             <div className="flex items-center flex-wrap justify-end gap-2">
                 <Button variant="outline" asChild>
                   <Link href={`/trips/${tripId}/edit`}>
                     <Edit className="mr-2 h-4 w-4" />
@@ -815,7 +815,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 overflow-hidden">
                   <div className="flex flex-col bg-bg-dark lg:overflow-y-auto">
                     <div className="p-6">
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
                             <h2 className="text-xl font-bold font-headline capitalize">
                                 {dayDate ? format(dayDate, 'EEEE d MMMM', { locale: fr }) : ''}
                             </h2>
