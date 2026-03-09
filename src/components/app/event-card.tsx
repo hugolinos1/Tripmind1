@@ -2,14 +2,20 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe } from "lucide-react";
+import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe, Paperclip, FileText } from "lucide-react";
 import { Badge } from "../ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
+
+export interface Attachment {
+  id: string;
+  filename: string;
+  category: 'ticket' | 'voucher' | 'reservation' | 'other';
+}
 
 // Adding description and practicalInfo to the event type for the card
 export interface Event {
@@ -29,6 +35,7 @@ export interface Event {
   };
   lat?: number;
   lng?: number;
+  attachments?: Attachment[];
 }
 
 interface EventCardProps {
@@ -62,6 +69,7 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
   };
 
   const hasPracticalInfo = event.practicalInfo && (event.practicalInfo.openingHours || event.practicalInfo.price || event.practicalInfo.tips || event.practicalInfo.website);
+  const hasAttachments = event.attachments && event.attachments.length > 0;
 
   return (
     <Card className={`border-l-4 ${config.color} border-y-slate-800 border-r-slate-800 bg-slate-800/30 group hover:bg-slate-800/60 transition-colors`}>
@@ -94,6 +102,28 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
+              )}
+              {hasAttachments && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary -ml-2">
+                            <Paperclip className="h-4 w-4" />
+                            <span className="sr-only">Pièces jointes</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuLabel>Pièces jointes</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {event.attachments?.map((att) => (
+                            <DropdownMenuItem key={att.id} asChild>
+                                <a href="#" onClick={(e) => e.preventDefault()} className="cursor-pointer">
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    <span>{att.filename}</span>
+                                </a>
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
             {event.isAiEnriched && (
@@ -170,3 +200,5 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
 };
 
 export default EventCard;
+
+    
