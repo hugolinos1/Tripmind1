@@ -106,7 +106,7 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
               {hasAttachments && (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary -ml-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
                             <Paperclip className="h-4 w-4" />
                             <span className="sr-only">Pièces jointes</span>
                         </Button>
@@ -200,5 +200,3 @@ const EventCard = ({ event, onEnrich }: EventCardProps) => {
 };
 
 export default EventCard;
-
-    
