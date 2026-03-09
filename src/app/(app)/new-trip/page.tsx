@@ -39,10 +39,14 @@ const formSchema = z.object({
   hasPets: z.boolean().default(false),
   pace: z.number().min(0).max(100),
   budget: z.number().min(0).max(100),
-  interests: z.string().optional(),
+  interests: z.array(z.string()).default([]),
+  mustSee: z.string().optional(),
+  placesToAvoid: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const availableInterests = ['Culture', 'Gastronomie', 'Nature', 'Histoire', 'Art', 'Sport', 'Shopping', 'Détente', 'Aventure', 'Plage'];
 
 export default function NewTripPage() {
   const router = useRouter();
@@ -67,7 +71,9 @@ export default function NewTripPage() {
       hasPets: false,
       pace: 50,
       budget: 50,
-      interests: '',
+      interests: [],
+      mustSee: '',
+      placesToAvoid: '',
     },
   });
 
@@ -98,7 +104,9 @@ export default function NewTripPage() {
         preferences: JSON.stringify({ 
             pace: values.pace, 
             budget: values.budget, 
-            interests: values.interests?.split(',').map(i => i.trim()).filter(i => i) || [] 
+            interests: values.interests || [],
+            mustSee: values.mustSee?.split(',').map(i => i.trim()).filter(i => i) || [],
+            placesToAvoid: values.placesToAvoid?.split(',').map(i => i.trim()).filter(i => i) || [],
         }),
         status: 'draft',
         createdAt: serverTimestamp(),
@@ -325,15 +333,60 @@ export default function NewTripPage() {
                             )}
                           />
                           <FormField
+                            control={form.control}
+                            name="interests"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Centres d'intérêt</FormLabel>
+                                <FormControl>
+                                  <div className="flex flex-wrap gap-2">
+                                    {availableInterests.map((interest) => (
+                                      <Button
+                                        key={interest}
+                                        type="button"
+                                        variant={field.value.includes(interest) ? "secondary" : "outline"}
+                                        onClick={() => {
+                                          const newValue = field.value.includes(interest)
+                                            ? field.value.filter((i) => i !== interest)
+                                            : [...field.value, interest];
+                                          field.onChange(newValue);
+                                        }}
+                                        className="text-sm h-8"
+                                      >
+                                        {interest}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </FormControl>
+                                <CardDescription className="text-xs pt-1">Sélectionnez un ou plusieurs thèmes.</CardDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                           <FormField
                               control={form.control}
-                              name="interests"
+                              name="mustSee"
                               render={({ field }) => (
                                   <FormItem>
-                                      <FormLabel>Centres d'intérêt</FormLabel>
+                                      <FormLabel>Incontournables</FormLabel>
                                       <FormControl>
-                                          <Input placeholder="Culture, gastronomie, nature..." {...field} />
+                                          <Input placeholder="Tour Eiffel, Musée du Louvre..." {...field} />
                                       </FormControl>
-                                      <CardDescription className="text-xs pt-1">Séparez plusieurs intérêts par une virgule.</CardDescription>
+                                      <CardDescription className="text-xs pt-1">Lieux que vous voulez absolument visiter (séparés par une virgule).</CardDescription>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="placesToAvoid"
+                              render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Lieux à éviter</FormLabel>
+                                      <FormControl>
+                                          <Input placeholder="Zones très touristiques..." {...field} />
+                                      </FormControl>
+                                      <CardDescription className="text-xs pt-1">Lieux ou types de lieux à exclure (séparés par une virgule).</CardDescription>
                                       <FormMessage />
                                   </FormItem>
                               )}
