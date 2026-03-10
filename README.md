@@ -20,6 +20,9 @@ This project uses environment variables to manage API keys and Firebase configur
 # Get your key from https://openrouter.ai/
 OPENROUTER_API_KEY="sk-or-..."
 
+# Get your Gemini API key from Google AI Studio
+GEMINI_API_KEY="..."
+
 # Firebase project configuration
 # You can get these from your Firebase project settings
 NEXT_PUBLIC_FIREBASE_PROJECT_ID="..."
@@ -29,7 +32,7 @@ NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="..."
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="..."
 
 # Optional: For Google Analytics for Firebase. Only add this if you have enabled Analytics.
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="..."
+# NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="..."
 ```
 
 ### Deployment (GitHub Actions)
