@@ -113,7 +113,7 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
 
   if (suggestions && suggestions.length > 0) {
     return (
-        <Collapsible defaultOpen className="my-2 group/collapsible">
+        <Collapsible className="my-2 group/collapsible">
             <div className="flex justify-center items-center transition-all duration-300 ease-in-out">
                 <div className="h-px bg-slate-700 flex-grow"></div>
                 <CollapsibleTrigger asChild>
