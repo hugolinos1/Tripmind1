@@ -25,10 +25,11 @@ import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { generateTripItinerary } from '@/ai/flows/ai-generate-trip-itinerary';
-import type { GenerateItineraryInput, CompleteDayItineraryInput } from '@/ai/types';
+import type { GenerateItineraryInput, CompleteDayItineraryInput, TransportSuggestionOutput } from '@/ai/types';
 import { completeDayItinerary } from '@/ai/flows/ai-complete-day-itinerary';
 import { enrichEventDetails } from '@/ai/flows/ai-enrich-event-details';
 import { geocodeLocation } from '@/ai/flows/ai-geocode-location';
+import { getTransportSuggestions } from '@/ai/flows/ai-get-transport-suggestions';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, orderBy, serverTimestamp, writeBatch, deleteDoc } from 'firebase/firestore';
@@ -71,6 +72,7 @@ const eventFormSchema = z.object({
   
 type EventFormValues = z.infer<typeof eventFormSchema>;
   
+type Suggestion = TransportSuggestionOutput['suggestions'][0];
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
@@ -588,6 +590,23 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         throw error;
     }
   };
+  
+  const handleGenerateTransportSuggestions = async (startEvent: EventType, endEvent: EventType): Promise<Suggestion[] | undefined> => {
+    if (!user || !firestore || !selectedDay || !startEvent.id) {
+        throw new Error("Impossible de sauvegarder les suggestions de trajet.");
+    }
+    
+    const result = await getTransportSuggestions({ startEvent, endEvent });
+
+    const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', startEvent.id);
+    
+    updateDocumentNonBlocking(eventRef, {
+        transportSuggestions: JSON.stringify(result.suggestions),
+        updatedAt: serverTimestamp()
+    });
+
+    return result.suggestions;
+  }
 
   const handleAddAttachment = (eventId: string, newAttachment: Attachment) => {
     if (!selectedDay || !events || !user || !firestore) return;
@@ -916,6 +935,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         <TransportSuggestionCard 
                                             startEvent={{ title: 'Lieu de départ', locationName: startLocation, lat: selectedDay?.startLat, lng: selectedDay?.startLng }}
                                             endEvent={event}
+                                            savedSuggestions={null}
+                                            onGenerate={async () => undefined}
                                         />
                                     )}
                                     <EventCard 
@@ -935,12 +956,16 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         <TransportSuggestionCard 
                                             startEvent={event}
                                             endEvent={dayEvents[index + 1]}
+                                            savedSuggestions={event.transportSuggestions ? JSON.parse(event.transportSuggestions) : null}
+                                            onGenerate={() => handleGenerateTransportSuggestions(event, dayEvents[index + 1])}
                                         />
                                     ) : (
                                         (endLocation || selectedDay?.endLat) && (
                                             <TransportSuggestionCard 
                                                 startEvent={event}
                                                 endEvent={{ title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng }}
+                                                savedSuggestions={event.transportSuggestions ? JSON.parse(event.transportSuggestions) : null}
+                                                onGenerate={() => handleGenerateTransportSuggestions(event, { id: 'end-of-day', title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng, type: 'activity', isAiEnriched: false, orderIndex: -1 })}
                                             />
                                         )
                                     )}

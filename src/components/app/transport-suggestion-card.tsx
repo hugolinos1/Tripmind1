@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -17,18 +17,19 @@ import {
   ChevronDown,
   Waypoints,
 } from 'lucide-react';
-import { getTransportSuggestions } from '@/ai/flows/ai-get-transport-suggestions';
 import type { TransportSuggestionOutput, TransportSuggestionInput } from '@/ai/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-interface TransportSuggestionCardProps {
-  startEvent: TransportSuggestionInput['startEvent'];
-  endEvent: TransportSuggestionInput['endEvent'];
-}
-
 type Suggestion = TransportSuggestionOutput['suggestions'][0];
+
+interface TransportSuggestionCardProps {
+  startEvent: { id?: string } & Omit<TransportSuggestionInput['startEvent'], 'id'>;
+  endEvent: TransportSuggestionInput['endEvent'];
+  savedSuggestions: Suggestion[] | null;
+  onGenerate: () => Promise<Suggestion[] | undefined>;
+}
 
 const modeIcons: Record<Suggestion['mode'] | 'other', React.ElementType> = {
   walking: Walk,
@@ -38,34 +39,48 @@ const modeIcons: Record<Suggestion['mode'] | 'other', React.ElementType> = {
   other: HelpCircle,
 };
 
-export function TransportSuggestionCard({ startEvent, endEvent }: TransportSuggestionCardProps) {
-  const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
+export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions, onGenerate }: TransportSuggestionCardProps) {
+  const [suggestions, setSuggestions] = useState<Suggestion[] | null>(savedSuggestions);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setSuggestions(savedSuggestions);
+    if (savedSuggestions) {
+      setError(null);
+    }
+  }, [savedSuggestions]);
+
   const canGenerate = (startEvent.lat && startEvent.lng && endEvent.lat && endEvent.lng) || (startEvent.locationName && endEvent.locationName);
 
-  const handleGenerate = async () => {
+  const handleGenerateClick = async () => {
+    if (!startEvent.id) {
+        setError("La génération n'est pas disponible pour les points de départ/arrivée généraux.");
+        return;
+    }
     if (!canGenerate) return;
+    
     setIsLoading(true);
     setError(null);
-    setSuggestions(null);
     try {
-      const result = await getTransportSuggestions({ startEvent, endEvent });
-      setSuggestions(result.suggestions);
+      const result = await onGenerate();
+      if (result) {
+        setSuggestions(result);
+      }
     } catch (e: any) {
       setError(e.message || 'Une erreur est survenue.');
     } finally {
       setIsLoading(false);
     }
   };
+  
+  const showGenerateButton = !suggestions && !isLoading && !error && startEvent.id;
 
-  if (!suggestions && !isLoading && !error) {
-    if (!canGenerate) return null;
+  if (showGenerateButton) {
     return (
       <div className="flex justify-center items-center my-2 transition-all duration-300 ease-in-out">
         <div className="h-px bg-slate-700 flex-grow"></div>
-        <Button variant="outline" size="sm" onClick={handleGenerate} className="mx-4 flex-shrink-0 border-slate-600 hover:bg-slate-800 hover:text-primary">
+        <Button variant="outline" size="sm" onClick={handleGenerateClick} className="mx-4 flex-shrink-0 border-slate-600 hover:bg-slate-800 hover:text-primary">
           <Sparkles className="mr-2 h-4 w-4" />
           Trajet vers l'événement suivant
         </Button>
@@ -89,7 +104,7 @@ export function TransportSuggestionCard({ startEvent, endEvent }: TransportSugge
             <Terminal className="h-4 w-4" />
             <AlertTitle>Erreur de suggestion</AlertTitle>
             <AlertDescription className="text-xs">{error}</AlertDescription>
-             <Button variant="link" size="sm" onClick={handleGenerate} className="p-0 h-auto mt-2 text-destructive">
+             <Button variant="link" size="sm" onClick={handleGenerateClick} className="p-0 h-auto mt-2 text-destructive">
                 Réessayer
             </Button>
         </Alert>
@@ -141,7 +156,7 @@ export function TransportSuggestionCard({ startEvent, endEvent }: TransportSugge
                             );
                         })}
                         <div className="text-center pt-1">
-                            <Button variant="ghost" size="sm" className="text-xs text-slate-500 hover:text-slate-300" onClick={handleGenerate}>
+                            <Button variant="ghost" size="sm" className="text-xs text-slate-500 hover:text-slate-300" onClick={handleGenerateClick}>
                                 <Sparkles className="mr-1 h-3 w-3" />
                                 Régénérer les suggestions
                             </Button>

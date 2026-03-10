@@ -64,19 +64,16 @@ export interface GetDestinationInsightsOutput {
 }
 
 // For ai-get-transport-suggestions.ts
+const TransportEventObjectSchema = z.object({
+  id: z.string().optional(),
+  title: z.string(),
+  locationName: z.string().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+});
 export const TransportSuggestionInputSchema = z.object({
-  startEvent: z.object({
-    title: z.string(),
-    locationName: z.string().optional(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-  }),
-  endEvent: z.object({
-    title: z.string(),
-    locationName: z.string().optional(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-  }),
+  startEvent: TransportEventObjectSchema,
+  endEvent: TransportEventObjectSchema,
 });
 export type TransportSuggestionInput = z.infer<typeof TransportSuggestionInputSchema>;
 

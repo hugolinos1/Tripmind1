@@ -38,6 +38,7 @@ export interface Event {
   lat?: number;
   lng?: number;
   attachments?: Attachment[];
+  transportSuggestions?: string;
   orderIndex: number;
 }
 

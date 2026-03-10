@@ -337,6 +337,10 @@
             "type": "string"
           }
         },
+        "transportSuggestions": {
+          "type": "string",
+          "description": "JSON string representing AI-generated transport suggestions to the next event. Can be null."
+        },
         "orderIndex": {
           "type": "number",
           "description": "The sequential order of this event within its day."
