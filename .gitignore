@@ -40,4 +40,4 @@ pnpm-debug.log*
 # Prisma
 # Ignore the .env file if it contains secrets.
 # You might want to commit a .env.example file instead.
-# .env
+.env
