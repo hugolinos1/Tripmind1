@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -11,7 +10,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 import { useState, useRef } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { useWhyDidYouUpdate } from '@/hooks/use-why-did-you-update';
 
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
 
@@ -62,7 +60,6 @@ const eventTypeConfig = {
 };
 
 const EventCardComponent = (props: EventCardProps) => {
-  useWhyDidYouUpdate('EventCard', props);
   const { event, onEnrich, onAddAttachment, onMove, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding } = props;
 
   const [isEnriching, setIsEnriching] = useState(false);
@@ -256,4 +253,26 @@ const EventCardComponent = (props: EventCardProps) => {
   );
 };
 
-export default EventCardComponent;
+function propsAreEqual(prevProps: Readonly<EventCardProps>, nextProps: Readonly<EventCardProps>): boolean {
+    // Perform a deep comparison on the 'event' prop
+    const eventsAreEqual = JSON.stringify(prevProps.event) === JSON.stringify(nextProps.event);
+
+    // Perform a shallow comparison on the other props
+    const otherPropsAreEqual =
+        prevProps.isFirst === nextProps.isFirst &&
+        prevProps.isLast === nextProps.isLast &&
+        prevProps.isGeocoding === nextProps.isGeocoding &&
+        prevProps.onEnrich === nextProps.onEnrich &&
+        prevProps.onAddAttachment === nextProps.onAddAttachment &&
+        prevProps.onMove === nextProps.onMove &&
+        prevProps.onGeocode === nextProps.onGeocode &&
+        prevProps.onDelete === nextProps.onDelete &&
+        prevProps.onEdit === nextProps.onEdit;
+
+    return eventsAreEqual && otherPropsAreEqual;
+}
+
+
+const EventCard = React.memo(EventCardComponent, propsAreEqual);
+
+export default EventCard;

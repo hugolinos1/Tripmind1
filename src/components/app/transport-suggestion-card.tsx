@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -23,7 +22,6 @@ import type { TransportSuggestionOutput, TransportSuggestionInput } from '@/ai/t
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useWhyDidYouUpdate } from '@/hooks/use-why-did-you-update';
 
 type Suggestion = TransportSuggestionOutput['suggestions'][0];
 
@@ -44,7 +42,6 @@ const modeIcons: Record<string, React.ElementType> = {
 };
 
 const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) => {
-  useWhyDidYouUpdate('TransportSuggestionCard', props);
   const { startEvent, endEvent, savedSuggestionsJSON, onGenerate } = props;
 
   const [isLoading, setIsLoading] = useState(false);
@@ -192,4 +189,15 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
   return null;
 }
 
-export const TransportSuggestionCard = TransportSuggestionCardComponent;
+function propsAreEqual(prevProps: Readonly<TransportSuggestionCardProps>, nextProps: Readonly<TransportSuggestionCardProps>): boolean {
+    const startEventsAreEqual = JSON.stringify(prevProps.startEvent) === JSON.stringify(nextProps.startEvent);
+    const endEventsAreEqual = JSON.stringify(prevProps.endEvent) === JSON.stringify(nextProps.endEvent);
+
+    const otherPropsAreEqual =
+        prevProps.savedSuggestionsJSON === nextProps.savedSuggestionsJSON &&
+        prevProps.onGenerate === nextProps.onGenerate;
+        
+    return startEventsAreEqual && endEventsAreEqual && otherPropsAreEqual;
+}
+
+export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent, propsAreEqual);
