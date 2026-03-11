@@ -3,7 +3,7 @@
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 const eventTypeColors = {
   visit: '#f59e0b',
@@ -89,19 +89,23 @@ function MapBoundsUpdater({ bounds }: { bounds: L.LatLngBounds | null }) {
 
 const MapView = ({ events, day }: MapViewProps) => {
   const position: L.LatLngExpression = [35.6895, 139.6917]; // Default to Tokyo
+
+  // Create a stable key based on the coordinates of the points to display.
+  // This prevents re-calculating the bounds on every render if the points haven't changed.
+  const pointsKey = useMemo(() => JSON.stringify(
+    [
+      ...(events || []).map(e => ({ lat: e.lat, lng: e.lng })),
+      { lat: day?.startLat, lng: day?.startLng },
+      { lat: day?.endLat, lng: day?.endLng }
+    ].filter(p => p.lat != null && p.lng != null)
+  ), [events, day]);
+
+  const bounds = useMemo(() => {
+    const points: L.LatLngTuple[] = JSON.parse(pointsKey).map((p: any) => [p.lat, p.lng]);
+    return points.length > 0 ? L.latLngBounds(points) : null;
+  }, [pointsKey]);
+
   const validEvents = events.filter(e => e.lat != null && e.lng != null);
-
-  const pointsForBounds: { lat: number; lng: number }[] = validEvents.map(e => ({ lat: e.lat!, lng: e.lng! }));
-  if (day?.startLat && day.startLng) {
-    pointsForBounds.push({ lat: day.startLat, lng: day.startLng });
-  }
-  if (day?.endLat && day.endLng) {
-    pointsForBounds.push({ lat: day.endLat, lng: day.endLng });
-  }
-
-  const bounds = pointsForBounds.length > 0
-    ? L.latLngBounds(pointsForBounds.map(p => [p.lat, p.lng]))
-    : null;
 
   return (
     <div className="w-full h-full relative">
