@@ -975,14 +975,13 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         />
                                     )}
                                     <EventCard 
-                                      key={event.id}
                                       event={event} 
                                       onEnrich={handleEnrichEvent} 
                                       onAddAttachment={handleAddAttachment}
                                       onMove={handleMoveEvent}
                                       onGeocode={handleGeocodeEvent}
                                       onDelete={handleDeleteEvent}
-                                      onEdit={handleOpenEventForm}
+                                      onEdit={() => handleOpenEventForm(event)}
                                       isFirst={index === 0}
                                       isLast={index === dayEvents.length - 1}
                                       isGeocoding={isGeocoding === event.id}
@@ -1131,3 +1130,5 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
