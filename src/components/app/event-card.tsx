@@ -1,5 +1,7 @@
+
 'use client';
 
+import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe, Paperclip, FileText, PlusCircle, ArrowUp, ArrowDown } from "lucide-react";
@@ -45,9 +47,8 @@ export interface Event {
 interface EventCardProps {
     event: Event;
     onEnrich: (eventId: string) => Promise<void>;
-    onAddAttachment: (attachment: Attachment) => void;
-    onMoveUp: () => void;
-    onMoveDown: () => void;
+    onAddAttachment: (eventId: string, attachment: Attachment) => void;
+    onMove: (eventId: string, direction: 'up' | 'down') => void;
     onGeocode: (eventId: string) => void;
     onDelete: (eventId: string) => void;
     onEdit: (event: Event) => void;
@@ -64,7 +65,7 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding }: EventCardProps) => {
+const EventCard = ({ event, onEnrich, onAddAttachment, onMove, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding }: EventCardProps) => {
   const [isEnriching, setIsEnriching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const config = eventTypeConfig[event.type] || eventTypeConfig.activity;
@@ -95,7 +96,7 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onG
               category: 'other', // default category
               url: URL.createObjectURL(file),
           };
-          onAddAttachment(newAttachment);
+          onAddAttachment(event.id, newAttachment);
       }
       // Reset file input to allow selecting the same file again
       if (e.target) {
@@ -226,11 +227,11 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onG
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={onMoveUp} disabled={isFirst}>
+                    <DropdownMenuItem onClick={() => onMove(event.id, 'up')} disabled={isFirst}>
                         <ArrowUp className="mr-2 h-4 w-4" />
                         Déplacer vers le haut
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onMoveDown} disabled={isLast}>
+                    <DropdownMenuItem onClick={() => onMove(event.id, 'down')} disabled={isLast}>
                         <ArrowDown className="mr-2 h-4 w-4" />
                         Déplacer vers le bas
                     </DropdownMenuItem>
@@ -255,4 +256,4 @@ const EventCard = ({ event, onEnrich, onAddAttachment, onMoveUp, onMoveDown, onG
   );
 };
 
-export default EventCard;
+export default React.memo(EventCard);

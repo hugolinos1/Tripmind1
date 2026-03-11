@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import React from 'react';
 import { useForm } from 'react-hook-form';
@@ -111,6 +111,11 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     return query(collection(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events'), orderBy('orderIndex'));
   }, [firestore, user, tripId, selectedDay]);
   const { data: events, isLoading: isEventsLoading } = useCollection<EventType>(eventsQuery);
+
+  const eventsRef = useRef(events);
+  useEffect(() => {
+      eventsRef.current = events;
+  }, [events]);
   
   const eventForm = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -123,7 +128,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     },
   });
 
-  const handleOpenEventForm = (event: EventType | null) => {
+  const handleOpenEventForm = useCallback((event: EventType | null) => {
     setCurrentEvent(event);
     if (event) {
       eventForm.reset({
@@ -143,9 +148,10 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       });
     }
     setIsEventFormOpen(true);
-  };
+  }, [eventForm]);
 
   const handleEventFormSubmit = (values: EventFormValues) => {
+    const currentEvents = eventsRef.current;
     if (!user || !firestore || !selectedDay) {
       toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
       return;
@@ -166,7 +172,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       toast({ title: 'Événement mis à jour !', description: `L'événement "${values.title}" a été modifié.` });
     } else {
       // Add new event
-      const orderIndex = events?.length || 0;
+      const orderIndex = currentEvents?.length || 0;
       const eventId = uuidv4();
       const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDay.id, 'events', eventId);
       
@@ -271,10 +277,11 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     }
   }
 
-  const handleGeocodeEvent = async (eventId: string) => {
-    if (!user || !firestore || !selectedDay || !events) return;
+  const handleGeocodeEvent = useCallback(async (eventId: string) => {
+    const currentEvents = eventsRef.current;
+    if (!user || !firestore || !selectedDay || !currentEvents) return;
 
-    const eventToGeocode = events.find(e => e.id === eventId);
+    const eventToGeocode = currentEvents.find(e => e.id === eventId);
     if (!eventToGeocode || !eventToGeocode.locationName) {
         toast({ variant: 'destructive', title: 'Erreur', description: "Le nom du lieu de l'événement est vide." });
         return;
@@ -295,7 +302,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     } finally {
         setIsGeocoding(null);
     }
-  };
+  }, [user, firestore, selectedDay, tripId, toast]);
 
   const handleCreateDaysManually = async () => {
     if (!tripData || !user || !firestore) {
@@ -463,7 +470,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   };
 
   const handleCompleteDayWithAI = async () => {
-    if (!tripData || !selectedDay || !events || !user || !firestore) {
+    const currentEvents = eventsRef.current;
+    if (!tripData || !selectedDay || !currentEvents || !user || !firestore) {
         toast({
             variant: "destructive",
             title: "Erreur",
@@ -479,7 +487,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
     try {
         const preferences = JSON.parse(tripData.preferences || '{}');
-        const existingEventsForAI = events.map(e => ({
+        const existingEventsForAI = currentEvents.map(e => ({
             id: e.id,
             title: e.title,
             type: e.type,
@@ -550,12 +558,13 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     }
   };
 
-  const handleEnrichEvent = async (eventId: string) => {
-    if (!selectedDay || !events) {
+  const handleEnrichEvent = useCallback(async (eventId: string) => {
+    const currentEvents = eventsRef.current;
+    if (!selectedDay || !currentEvents) {
         toast({ variant: "destructive", title: "Erreur", description: "Aucun jour ou événement sélectionné." });
         return;
     }
-    const eventToEnrich = events.find(e => e.id === eventId);
+    const eventToEnrich = currentEvents.find(e => e.id === eventId);
 
     if (!eventToEnrich || !user || !firestore) {
         toast({ variant: "destructive", title: "Erreur", description: "L'événement à enrichir n'a pas été trouvé." });
@@ -589,9 +598,9 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         });
         throw error;
     }
-  };
+  }, [user, firestore, tripId, selectedDay, toast]);
   
-  const handleGenerateTransportSuggestions = async (startEvent: EventType, endEvent: EventType): Promise<Suggestion[] | undefined> => {
+  const handleGenerateTransportSuggestions = useCallback(async (startEvent: EventType, endEvent: EventType): Promise<Suggestion[] | undefined> => {
     if (!user || !firestore || !selectedDay || !startEvent.id) {
         throw new Error("Impossible de sauvegarder les suggestions de trajet.");
     }
@@ -606,12 +615,13 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     });
 
     return result.suggestions;
-  }
+  }, [user, firestore, selectedDay, tripId]);
 
-  const handleAddAttachment = (eventId: string, newAttachment: Attachment) => {
-    if (!selectedDay || !events || !user || !firestore) return;
+  const handleAddAttachment = useCallback((eventId: string, newAttachment: Attachment) => {
+    const currentEvents = eventsRef.current;
+    if (!selectedDay || !currentEvents || !user || !firestore) return;
 
-    const eventToUpdate = events.find(e => e.id === eventId);
+    const eventToUpdate = currentEvents.find(e => e.id === eventId);
     if (!eventToUpdate) return;
     
     const updatedAttachments = [...(eventToUpdate.attachments || []), newAttachment];
@@ -623,19 +633,20 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       title: "Pièce jointe ajoutée",
       description: `Le fichier "${newAttachment.filename}" a été ajouté.`,
     });
-  };
+  }, [user, firestore, selectedDay, tripId, toast]);
 
-  const handleMoveEvent = async (eventId: string, direction: 'up' | 'down') => {
-    if (!user || !firestore || !selectedDay || !events || events.length < 2) return;
+  const handleMoveEvent = useCallback(async (eventId: string, direction: 'up' | 'down') => {
+    const currentEvents = eventsRef.current;
+    if (!user || !firestore || !selectedDay || !currentEvents || currentEvents.length < 2) return;
 
-    const eventIndex = events.findIndex(e => e.id === eventId);
+    const eventIndex = currentEvents.findIndex(e => e.id === eventId);
     if (eventIndex === -1) return;
 
     const otherEventIndex = direction === 'up' ? eventIndex - 1 : eventIndex + 1;
-    if (otherEventIndex < 0 || otherEventIndex >= events.length) return;
+    if (otherEventIndex < 0 || otherEventIndex >= currentEvents.length) return;
 
-    const eventToMove = events[eventIndex];
-    const otherEvent = events[otherEventIndex];
+    const eventToMove = currentEvents[eventIndex];
+    const otherEvent = currentEvents[otherEventIndex];
 
     const batch = writeBatch(firestore);
 
@@ -656,10 +667,11 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             description: "Impossible de réorganiser les événements."
         });
     }
-  };
+  }, [user, firestore, selectedDay, tripId, toast]);
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!user || !firestore || !selectedDay || !events) {
+  const handleDeleteEvent = useCallback(async (eventId: string) => {
+    const currentEvents = eventsRef.current;
+    if (!user || !firestore || !selectedDay || !currentEvents) {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -668,7 +680,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       return;
     }
     
-    const eventToDelete = events.find(e => e.id === eventId);
+    const eventToDelete = currentEvents.find(e => e.id === eventId);
     if (!eventToDelete) {
         toast({ variant: "destructive", title: "Erreur", description: "Événement non trouvé." });
         return;
@@ -682,7 +694,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     deleteDoc(eventRef).catch(err => console.error("Non-blocking delete failed", err));
 
     // Re-order subsequent events
-    const eventsToUpdate = events
+    const eventsToUpdate = currentEvents
         .filter(e => e.orderIndex > eventToDelete.orderIndex)
         .sort((a,b) => a.orderIndex - b.orderIndex);
 
@@ -705,7 +717,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             description: "Impossible de réorganiser l'itinéraire. Veuillez rafraîchir.",
         });
     }
-  };
+  }, [user, firestore, selectedDay, tripId, toast]);
 
 
   const isLoading = isTripLoading || isDaysLoading;
@@ -802,7 +814,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             </TabsList>
           </div>
 
-          <TabsContent value="itinerary" className="flex-grow flex flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1 bg-slate-900/50">
+          <TabsContent value="itinerary" className="flex-grow flex flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1">
             {days && days.length > 0 ? (
               <>
                 {/* Day Itinerary */}
@@ -942,12 +954,11 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                     <EventCard 
                                       event={event} 
                                       onEnrich={handleEnrichEvent} 
-                                      onAddAttachment={(att) => handleAddAttachment(event.id, att)}
-                                      onMoveUp={() => handleMoveEvent(event.id, 'up')}
-                                      onMoveDown={() => handleMoveEvent(event.id, 'down')}
+                                      onAddAttachment={handleAddAttachment}
+                                      onMove={handleMoveEvent}
                                       onGeocode={handleGeocodeEvent}
                                       onDelete={handleDeleteEvent}
-                                      onEdit={() => handleOpenEventForm(event)}
+                                      onEdit={handleOpenEventForm}
                                       isFirst={index === 0}
                                       isLast={index === dayEvents.length - 1}
                                       isGeocoding={isGeocoding === event.id}
