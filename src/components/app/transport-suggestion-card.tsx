@@ -17,6 +17,7 @@ import {
   ChevronDown,
   Waypoints,
   Plane,
+  Train,
 } from 'lucide-react';
 import type { TransportSuggestionOutput, TransportSuggestionInput } from '@/ai/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -34,8 +35,12 @@ export interface TransportSuggestionCardProps {
 
 const modeIcons: Record<string, React.ElementType> = {
   walking: Walk,
+  bus: Bus,
+  metro: Train,
+  train: Train,
   public_transport: Bus,
   taxi: Car,
+  car: Car,
   bike_sharing: Bike,
   plane: Plane,
   other: HelpCircle,
@@ -126,6 +131,18 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
   }
 
   if (suggestions && suggestions.length > 0) {
+    const modeLabels: Record<string, string> = {
+        walking: 'À pied',
+        bus: 'Bus',
+        metro: 'Métro',
+        train: 'Train',
+        public_transport: 'Transport public',
+        taxi: 'Taxi / VTC',
+        car: 'Voiture',
+        bike_sharing: 'Vélo en libre-service',
+        plane: 'Avion',
+        other: 'Autre'
+    };
     return (
         <Collapsible className="my-2 group/collapsible" open={isExpanded} onOpenChange={setIsExpanded}>
             <div className="flex justify-center items-center transition-all duration-300 ease-in-out">
@@ -144,14 +161,6 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
                     <CardContent className="p-3 space-y-2">
                         {suggestions.map((suggestion, index) => {
                             const Icon = modeIcons[suggestion.mode] || HelpCircle;
-                            const modeLabels: Record<Suggestion['mode'], string> = {
-                                walking: 'À pied',
-                                public_transport: 'Transport public',
-                                taxi: 'Taxi / VTC',
-                                bike_sharing: 'Vélo en libre-service',
-                                plane: 'Avion',
-                                other: 'Autre'
-                            };
                             return (
                                 <div key={`${suggestion.mode}-${index}`} className="p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700">
                                     <div className="flex items-center gap-4">
