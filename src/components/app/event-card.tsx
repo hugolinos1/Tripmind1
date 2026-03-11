@@ -60,22 +60,6 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-function deepEqual(objA: any, objB: any): boolean {
-    if (objA === objB) return true;
-    if (typeof objA !== 'object' || objA === null || typeof objB !== 'object' || objB === null) {
-        return false;
-    }
-    const keysA = Object.keys(objA);
-    const keysB = Object.keys(objB);
-    if (keysA.length !== keysB.length) return false;
-    for (const key of keysA) {
-        if (!keysB.includes(key) || !deepEqual(objA[key], objB[key])) {
-            return false;
-        }
-    }
-    return true;
-}
-
 const EventCardComponent = (props: EventCardProps) => {
   const { event, onEnrich, onAddAttachment, onMove, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding } = props;
 
@@ -270,8 +254,41 @@ const EventCardComponent = (props: EventCardProps) => {
   );
 };
 
+function deepEqual(a: any, b: any): boolean {
+    if (a === b) return true;
+
+    if (a && b && typeof a === 'object' && typeof b === 'object') {
+        if (a.constructor !== b.constructor) return false;
+
+        let length, i;
+        if (Array.isArray(a)) {
+            length = a.length;
+            if (length !== b.length) return false;
+            for (i = length; i-- > 0;)
+                if (!deepEqual(a[i], b[i])) return false;
+            return true;
+        }
+
+        if (a.constructor === RegExp) return a.source === b.source && a.flags === b.flags;
+        if (a.valueOf !== Object.prototype.valueOf) return a.valueOf() === b.valueOf();
+        if (a.toString !== Object.prototype.toString) return a.toString() === b.toString();
+
+        const keys = Object.keys(a);
+        length = keys.length;
+        if (length !== Object.keys(b).length) return false;
+
+        for (i = length; i-- > 0;) {
+            const key = keys[i];
+            if (!Object.prototype.hasOwnProperty.call(b, key) || !deepEqual(a[key], b[key])) return false;
+        }
+
+        return true;
+    }
+
+    return a !== a && b !== b;
+}
+
 const eventPropsAreEqual = (prevProps: EventCardProps, nextProps: EventCardProps) => {
-    // Compare primitive props first for a quick exit
     if (
       prevProps.isFirst !== nextProps.isFirst ||
       prevProps.isLast !== nextProps.isLast ||
@@ -286,7 +303,6 @@ const eventPropsAreEqual = (prevProps: EventCardProps, nextProps: EventCardProps
       return false;
     }
   
-    // If primitive props are the same, perform a deep comparison on the event object.
     return deepEqual(prevProps.event, nextProps.event);
 };
 
