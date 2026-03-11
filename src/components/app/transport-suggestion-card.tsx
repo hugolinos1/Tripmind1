@@ -72,10 +72,6 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
   const canGenerate = (startEvent.lat && startEvent.lng && endEvent.lat && endEvent.lng) || (startEvent.locationName && endEvent.locationName);
 
   const handleGenerateClick = useCallback(async () => {
-    if (!startEvent.id) {
-        setError("La génération n'est pas disponible pour les points de départ/arrivée généraux.");
-        return;
-    }
     if (!canGenerate) return;
     
     setIsLoading(true);
@@ -91,7 +87,8 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
     }
   }, [startEvent, endEvent, onGenerate, canGenerate]);
   
-  const showGenerateButton = !suggestions && !isLoading && !error && startEvent.id;
+  const showGenerateButton = !suggestions && !isLoading && !error;
+  const buttonLabel = startEvent.id ? `Trajet vers l'événement suivant` : `Trajet depuis le lieu de départ`;
 
   if (showGenerateButton) {
     return (
@@ -99,7 +96,7 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
         <div className="h-px bg-slate-700 flex-grow"></div>
         <Button variant="outline" size="sm" onClick={handleGenerateClick} className="mx-4 flex-shrink-0 border-slate-600 hover:bg-slate-800 hover:text-primary">
           <Sparkles className="mr-2 h-4 w-4" />
-          Trajet vers l'événement suivant
+          {buttonLabel}
         </Button>
         <div className="h-px bg-slate-700 flex-grow"></div>
       </div>
