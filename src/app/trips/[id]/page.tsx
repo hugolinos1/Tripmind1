@@ -117,11 +117,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   }, [firestore, user, tripId, selectedDayId]);
   const { data: events, isLoading: isEventsLoading } = useCollection<EventType>(eventsQuery);
 
-  const eventsRef = useRef(events);
-  useEffect(() => {
-      eventsRef.current = events;
-  }, [events]);
-  
   const eventForm = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
@@ -140,28 +135,29 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (isEventFormOpen) {
-      if (currentEvent) {
-        eventForm.reset({
-          title: currentEvent.title || '',
-          type: currentEvent.type || 'activity',
-          startTime: currentEvent.startTime || '',
-          durationMinutes: currentEvent.durationMinutes || undefined,
-          locationName: currentEvent.locationName || '',
-        });
-      } else {
-        eventForm.reset({
-          title: '',
-          type: 'activity',
-          startTime: '',
-          durationMinutes: undefined,
-          locationName: '',
-        });
-      }
+      setTimeout(() => {
+        if (currentEvent) {
+          eventForm.reset({
+            title: currentEvent.title || '',
+            type: currentEvent.type || 'activity',
+            startTime: currentEvent.startTime || '',
+            durationMinutes: currentEvent.durationMinutes || undefined,
+            locationName: currentEvent.locationName || '',
+          });
+        } else {
+          eventForm.reset({
+            title: '',
+            type: 'activity',
+            startTime: '',
+            durationMinutes: undefined,
+            locationName: '',
+          });
+        }
+      }, 0);
     }
   }, [isEventFormOpen, currentEvent, eventForm]);
 
   const handleEventFormSubmit = useCallback(async (values: EventFormValues) => {
-    const currentEvents = eventsRef.current;
     if (!user || !firestore || !selectedDayId) {
       toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
       return;
@@ -184,7 +180,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       updateDocumentNonBlocking(eventRef, dataToUpdate);
       toast({ title: 'Événement mis à jour !', description: `L'événement "${values.title}" a été modifié.` });
     } else {
-      const orderIndex = currentEvents?.length || 0;
+      const orderIndex = events?.length || 0;
       const eventId = uuidv4();
       const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
       
@@ -213,7 +209,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
     setCurrentEvent(null);
     eventForm.reset();
-  }, [currentEvent, eventForm, firestore, user, tripId, toast, selectedDayId]);
+  }, [currentEvent, eventForm, firestore, user, tripId, toast, selectedDayId, events]);
 
   // Reset selected day if days change
   useEffect(() => {
@@ -287,10 +283,9 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   }, [user, firestore, selectedDayId, tripId, toast, startLocation, endLocation]);
 
   const handleGeocodeEvent = useCallback(async (eventId: string) => {
-    const currentEvents = eventsRef.current;
-    if (!user || !firestore || !selectedDayId || !currentEvents) return;
+    if (!user || !firestore || !selectedDayId || !events) return;
 
-    const eventToGeocode = currentEvents.find(e => e.id === eventId);
+    const eventToGeocode = events.find(e => e.id === eventId);
     if (!eventToGeocode || !eventToGeocode.locationName) {
         toast({ variant: 'destructive', title: 'Erreur', description: "Le nom du lieu de l'événement est vide." });
         return;
@@ -311,7 +306,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     } finally {
         setIsGeocoding(null);
     }
-  }, [user, firestore, selectedDayId, tripId, toast]);
+  }, [user, firestore, selectedDayId, tripId, toast, events]);
 
   const handleCreateDaysManually = async () => {
     if (!tripData || !user || !firestore) {
@@ -473,8 +468,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   };
 
   const handleCompleteDayWithAI = useCallback(async () => {
-    const currentEvents = eventsRef.current;
-    if (!tripData || !selectedDayId || !currentEvents || !user || !firestore || !days) {
+    if (!tripData || !selectedDayId || !events || !user || !firestore || !days) {
         toast({
             variant: "destructive",
             title: "Erreur",
@@ -492,7 +486,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
     try {
         const preferences = JSON.parse(tripData.preferences || '{}');
-        const existingEventsForAI = currentEvents.map(e => ({
+        const existingEventsForAI = events.map(e => ({
             id: e.id,
             title: e.title,
             type: e.type,
@@ -561,15 +555,14 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     } finally {
         setIsGenerating(false);
     }
-  }, [tripData, selectedDayId, user, firestore, toast, tripId, days]);
+  }, [tripData, selectedDayId, user, firestore, toast, tripId, days, events]);
 
   const handleEnrichEvent = useCallback(async (eventId: string) => {
-    const currentEvents = eventsRef.current;
-    if (!selectedDayId || !currentEvents) {
+    if (!selectedDayId || !events) {
         toast({ variant: "destructive", title: "Erreur", description: "Aucun jour ou événement sélectionné." });
         return;
     }
-    const eventToEnrich = currentEvents.find(e => e.id === eventId);
+    const eventToEnrich = events.find(e => e.id === eventId);
 
     if (!eventToEnrich || !user || !firestore) {
         toast({ variant: "destructive", title: "Erreur", description: "L'événement à enrichir n'a pas été trouvé." });
@@ -603,7 +596,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         });
         throw error;
     }
-  }, [user, firestore, tripId, selectedDayId, toast]);
+  }, [user, firestore, tripId, selectedDayId, toast, events]);
   
   const handleGenerateTransportSuggestions = useCallback(async (startEvent: EventType, endEvent: EventType): Promise<Suggestion[] | undefined> => {
     if (!user || !firestore || !selectedDayId || !startEvent.id) {
@@ -623,10 +616,9 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   }, [user, firestore, selectedDayId, tripId]);
 
   const handleAddAttachment = useCallback((eventId: string, newAttachment: Attachment) => {
-    const currentEvents = eventsRef.current;
-    if (!selectedDayId || !currentEvents || !user || !firestore) return;
+    if (!selectedDayId || !events || !user || !firestore) return;
 
-    const eventToUpdate = currentEvents.find(e => e.id === eventId);
+    const eventToUpdate = events.find(e => e.id === eventId);
     if (!eventToUpdate) return;
     
     const updatedAttachments = [...(eventToUpdate.attachments || []), newAttachment];
@@ -638,20 +630,19 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       title: "Pièce jointe ajoutée",
       description: `Le fichier "${newAttachment.filename}" a été ajouté.`,
     });
-  }, [user, firestore, selectedDayId, tripId, toast]);
+  }, [user, firestore, selectedDayId, tripId, toast, events]);
 
   const handleMoveEvent = useCallback(async (eventId: string, direction: 'up' | 'down') => {
-    const currentEvents = eventsRef.current;
-    if (!user || !firestore || !selectedDayId || !currentEvents || currentEvents.length < 2) return;
+    if (!user || !firestore || !selectedDayId || !events || events.length < 2) return;
 
-    const eventIndex = currentEvents.findIndex(e => e.id === eventId);
+    const eventIndex = events.findIndex(e => e.id === eventId);
     if (eventIndex === -1) return;
 
     const otherEventIndex = direction === 'up' ? eventIndex - 1 : eventIndex + 1;
-    if (otherEventIndex < 0 || otherEventIndex >= currentEvents.length) return;
+    if (otherEventIndex < 0 || otherEventIndex >= events.length) return;
 
-    const eventToMove = currentEvents[eventIndex];
-    const otherEvent = currentEvents[otherEventIndex];
+    const eventToMove = events[eventIndex];
+    const otherEvent = events[otherEventIndex];
 
     const batch = writeBatch(firestore);
 
@@ -672,11 +663,10 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             description: "Impossible de réorganiser les événements."
         });
     }
-  }, [user, firestore, selectedDayId, tripId, toast]);
+  }, [user, firestore, selectedDayId, tripId, toast, events]);
 
   const handleDeleteEvent = useCallback(async (eventId: string) => {
-    const currentEvents = eventsRef.current;
-    if (!user || !firestore || !selectedDayId || !currentEvents) {
+    if (!user || !firestore || !selectedDayId || !events) {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -685,7 +675,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       return;
     }
     
-    const eventToDelete = currentEvents.find(e => e.id === eventId);
+    const eventToDelete = events.find(e => e.id === eventId);
     if (!eventToDelete) {
         toast({ variant: "destructive", title: "Erreur", description: "Événement non trouvé." });
         return;
@@ -699,7 +689,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     deleteDoc(eventRef).catch(err => console.error("Non-blocking delete failed", err));
 
     // Re-order subsequent events
-    const eventsToUpdate = currentEvents
+    const eventsToUpdate = events
         .filter(e => e.orderIndex > eventToDelete.orderIndex)
         .sort((a,b) => a.orderIndex - b.orderIndex);
 
@@ -722,7 +712,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             description: "Impossible de réorganiser l'itinéraire. Veuillez rafraîchir.",
         });
     }
-  }, [user, firestore, selectedDayId, tripId, toast]);
+  }, [user, firestore, selectedDayId, tripId, toast, events]);
 
   const startOfDayEvent = useMemo(() => ({
       title: 'Lieu de départ',
@@ -974,7 +964,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                             onGenerate={handleGenerateTransportSuggestions as any}
                                         />
                                     )}
-                                    <EventCard 
+                                    <EventCard
                                       event={event} 
                                       onEnrich={handleEnrichEvent} 
                                       onAddAttachment={handleAddAttachment}

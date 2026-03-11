@@ -254,8 +254,6 @@ const EventCardComponent = (props: EventCardProps) => {
 };
 
 function propsAreEqual(prevProps: Readonly<EventCardProps>, nextProps: Readonly<EventCardProps>) {
-  // Only compare primitive props and stringified event object.
-  // Functions are assumed to be stable via useCallback in the parent.
   if (
     prevProps.isFirst !== nextProps.isFirst ||
     prevProps.isLast !== nextProps.isLast ||
@@ -263,6 +261,9 @@ function propsAreEqual(prevProps: Readonly<EventCardProps>, nextProps: Readonly<
   ) {
     return false;
   }
+  
+  // Functions are assumed to be stable via useCallback in the parent.
+  // We only need to compare the `event` data deeply.
   return JSON.stringify(prevProps.event) === JSON.stringify(nextProps.event);
 }
 

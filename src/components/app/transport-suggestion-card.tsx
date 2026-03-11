@@ -190,17 +190,16 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
 }
 
 function propsAreEqual(prevProps: Readonly<TransportSuggestionCardProps>, nextProps: Readonly<TransportSuggestionCardProps>): boolean {
-    // Only re-render if the suggestions or the endpoints have factually changed.
     if (prevProps.savedSuggestionsJSON !== nextProps.savedSuggestionsJSON) {
         return false;
     }
-    // Deep comparison of start and end events is critical.
     if (JSON.stringify(prevProps.startEvent) !== JSON.stringify(nextProps.startEvent)) {
         return false;
     }
     if (JSON.stringify(prevProps.endEvent) !== JSON.stringify(nextProps.endEvent)) {
         return false;
     }
+    // Functions are assumed to be stable.
     return true;
 }
 
