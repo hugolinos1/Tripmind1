@@ -23,6 +23,7 @@ import type { TransportSuggestionOutput, TransportSuggestionInput } from '@/ai/t
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useWhyDidYouUpdate } from '@/hooks/use-why-did-you-update';
 
 type Suggestion = TransportSuggestionOutput['suggestions'][0];
 
@@ -42,7 +43,10 @@ const modeIcons: Record<string, React.ElementType> = {
   other: HelpCircle,
 };
 
-export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestionsJSON, onGenerate }: TransportSuggestionCardProps) {
+export function TransportSuggestionCard(props: TransportSuggestionCardProps) {
+  useWhyDidYouUpdate('TransportSuggestionCard', props);
+  const { startEvent, endEvent, savedSuggestionsJSON, onGenerate } = props;
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
