@@ -132,28 +132,33 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       locationName: '',
     },
   });
-  
+
   const handleOpenEventForm = useCallback((event: EventType | null) => {
     setCurrentEvent(event);
-    if (event) {
-      eventForm.reset({
-        title: event.title || '',
-        type: event.type || 'activity',
-        startTime: event.startTime || '',
-        durationMinutes: event.durationMinutes || undefined,
-        locationName: event.locationName || '',
-      });
-    } else {
-      eventForm.reset({
-        title: '',
-        type: 'activity',
-        startTime: '',
-        durationMinutes: undefined,
-        locationName: '',
-      });
-    }
     setIsEventFormOpen(true);
-  }, [eventForm.reset]);
+  }, []);
+
+  useEffect(() => {
+    if (isEventFormOpen) {
+      if (currentEvent) {
+        eventForm.reset({
+          title: currentEvent.title || '',
+          type: currentEvent.type || 'activity',
+          startTime: currentEvent.startTime || '',
+          durationMinutes: currentEvent.durationMinutes || undefined,
+          locationName: currentEvent.locationName || '',
+        });
+      } else {
+        eventForm.reset({
+          title: '',
+          type: 'activity',
+          startTime: '',
+          durationMinutes: undefined,
+          locationName: '',
+        });
+      }
+    }
+  }, [isEventFormOpen, currentEvent, eventForm]);
 
   const handleEventFormSubmit = useCallback(async (values: EventFormValues) => {
     const currentEvents = eventsRef.current;
@@ -162,14 +167,11 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       return;
     }
 
-    // Close dialog first to avoid it being stuck if the following logic is heavy or triggers many re-renders
     setIsEventFormOpen(false);
     
-    // Use setTimeout(0) to yield to the main thread and allow the dialog to close smoothly
     await new Promise(resolve => setTimeout(resolve, 0));
   
     if (currentEvent) {
-      // Edit existing event
       const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
       const dataToUpdate = {
         title: values.title,
@@ -182,13 +184,12 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       updateDocumentNonBlocking(eventRef, dataToUpdate);
       toast({ title: 'Événement mis à jour !', description: `L'événement "${values.title}" a été modifié.` });
     } else {
-      // Add new event
       const orderIndex = currentEvents?.length || 0;
       const eventId = uuidv4();
       const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
       
       const eventData = {
-        id: eventId, // explicit ID for client-side state updates
+        id: eventId,
         dayId: selectedDayId,
         type: values.type,
         title: values.title,
@@ -212,7 +213,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
     setCurrentEvent(null);
     eventForm.reset();
-  }, [currentEvent, eventForm.reset, firestore, user, tripId, toast, selectedDayId]);
+  }, [currentEvent, eventForm, firestore, user, tripId, toast, selectedDayId]);
 
   // Reset selected day if days change
   useEffect(() => {
@@ -964,7 +965,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                 </>
                             ) : dayEvents.length > 0 ? (
                                dayEvents.map((event, index) => (
-                                 <React.Fragment key={`fragment-${event.id}`}>
+                                 <React.Fragment key={event.id}>
                                     {index === 0 && (startLocation || selectedDay?.startLat) && (
                                         <TransportSuggestionCard 
                                             startEvent={startOfDayEvent as any}
@@ -974,7 +975,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         />
                                     )}
                                     <EventCard 
-                                      key={event.id}
                                       event={event} 
                                       onEnrich={handleEnrichEvent} 
                                       onAddAttachment={handleAddAttachment}
