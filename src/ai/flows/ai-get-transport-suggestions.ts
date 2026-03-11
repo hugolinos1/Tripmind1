@@ -18,7 +18,7 @@ You are an expert local guide and travel planner. Your task is to provide the be
 
 **Instructions:**
 1.  **Analyze the route.** Consider the distance, time of day (if known, assume midday otherwise), and typical traffic/conditions for the location.
-2.  **Provide 2-3 relevant transport options.** Include public transport (metro, bus), walking, and ride-sharing/taxi. Include bike sharing if relevant for the city.
+2.  **Provide 2-3 relevant transport options.** Include public transport (metro, bus), walking, and ride-sharing/taxi. Include bike sharing if relevant for the city. If the distance is significant (e.g., between different cities or countries), include flights ('plane') as an option.
 3.  **For each option, provide details.** Include estimated distance in kilometers, estimated duration, cost in Euros (e.g., '€2.15', '€15-20', or 'Gratuit'), and a brief description in French covering ease of use, convenience, and any tips (e.g., "Idéal pour voir la ville", "Le plus rapide en heure de pointe", "Nécessite une carte de transport").
 4.  **Format the output as a valid JSON object.** Your entire response must be ONLY a raw JSON object. Do not include markdown backticks or any other text outside of the JSON. **CRITICAL**: Ensure the JSON is valid. All strings containing double quotes must have them escaped with a backslash (e.g., "description": "Une description \\"avec\\" des guillemets.").
 
@@ -36,12 +36,12 @@ The output must be a JSON object that strictly follows this Zod schema:
       "isEcoFriendly": true
     },
     {
-      "mode": "public_transport",
-      "durationMinutes": 15,
-      "distanceKm": 2.1,
-      "cost": "€1.90",
-      "description": "Le métro est le moyen le plus rapide et le plus efficace pour ce trajet.",
-      "isEcoFriendly": true
+      "mode": "plane",
+      "durationMinutes": 180,
+      "distanceKm": 900,
+      "cost": "€150-300",
+      "description": "Un vol direct est l'option la plus rapide pour les longues distances.",
+      "isEcoFriendly": false
     }
   ]
 }

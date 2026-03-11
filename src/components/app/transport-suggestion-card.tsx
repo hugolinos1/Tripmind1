@@ -16,6 +16,7 @@ import {
   Leaf,
   ChevronDown,
   Waypoints,
+  Plane,
 } from 'lucide-react';
 import type { TransportSuggestionOutput, TransportSuggestionInput } from '@/ai/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -36,6 +37,7 @@ const modeIcons: Record<Suggestion['mode'] | 'other', React.ElementType> = {
   public_transport: Bus,
   taxi: Car,
   bike_sharing: Bike,
+  plane: Plane,
   other: HelpCircle,
 };
 
@@ -135,6 +137,7 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
                                 public_transport: 'Transport public',
                                 taxi: 'Taxi / VTC',
                                 bike_sharing: 'Vélo en libre-service',
+                                plane: 'Avion',
                                 other: 'Autre'
                             };
                             return (
