@@ -19,7 +19,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import EventCard, { type Event as EventType, type Attachment } from '@/components/app/event-card';
+import EventCard from '@/components/app/event-card';
+import type { Event as EventType, Attachment } from '@/components/app/event-card';
 import { TransportSuggestionCard } from '@/components/app/transport-suggestion-card';
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
@@ -1106,4 +1107,5 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
 

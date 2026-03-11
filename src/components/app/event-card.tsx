@@ -31,12 +31,7 @@ export interface Event {
   locationName?: string;
   isAiEnriched: boolean;
   description?: string;
-  practicalInfo?: {
-    openingHours?: string;
-    price?: string;
-    tips?: string;
-    website?: string;
-  };
+  practicalInfo?: string; // Stored as a JSON string
   lat?: number;
   lng?: number;
   attachments?: Attachment[];
@@ -65,7 +60,7 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
-const EventCard = (props: EventCardProps) => {
+const EventCardComponent = (props: EventCardProps) => {
   const { event, onEnrich, onAddAttachment, onMove, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding } = props;
 
   const [isEnriching, setIsEnriching] = useState(false);
@@ -105,8 +100,9 @@ const EventCard = (props: EventCardProps) => {
           e.target.value = '';
       }
   };
-
-  const hasPracticalInfo = event.practicalInfo && (event.practicalInfo.openingHours || event.practicalInfo.price || event.practicalInfo.tips || event.practicalInfo.website);
+  
+  const practicalInfoObject = event.practicalInfo ? JSON.parse(event.practicalInfo) : {};
+  const hasPracticalInfo = practicalInfoObject && (practicalInfoObject.openingHours || practicalInfoObject.price || practicalInfoObject.tips || practicalInfoObject.website);
   const hasAttachments = event.attachments && event.attachments.length > 0;
 
   return (
@@ -126,13 +122,13 @@ const EventCard = (props: EventCardProps) => {
                         </TooltipTrigger>
                         <TooltipContent>
                             <div className="space-y-2 p-1 text-sm max-w-xs">
-                                {event.practicalInfo?.openingHours && <p><strong>Horaires:</strong> {event.practicalInfo.openingHours}</p>}
-                                {event.practicalInfo?.price && <p><strong>Prix:</strong> {event.practicalInfo.price}</p>}
-                                {event.practicalInfo?.tips && <p><strong>Conseils:</strong> {event.practicalInfo.tips}</p>}
-                                {event.practicalInfo?.website && (
+                                {practicalInfoObject?.openingHours && <p><strong>Horaires:</strong> {practicalInfoObject.openingHours}</p>}
+                                {practicalInfoObject?.price && <p><strong>Prix:</strong> {practicalInfoObject.price}</p>}
+                                {practicalInfoObject?.tips && <p><strong>Conseils:</strong> {practicalInfoObject.tips}</p>}
+                                {practicalInfoObject?.website && (
                                     <p className="flex items-center gap-2">
                                         <Globe className="h-4 w-4 text-slate-400" />
-                                        <a href={event.practicalInfo.website} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+                                        <a href={practicalInfoObject.website} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
                                             Visiter le site web
                                         </a>
                                     </p>
@@ -258,4 +254,40 @@ const EventCard = (props: EventCardProps) => {
   );
 };
 
-export default React.memo(EventCard);
+const eventPropsAreEqual = (prevProps: EventCardProps, nextProps: EventCardProps) => {
+    const p = prevProps;
+    const n = nextProps;
+  
+    // Quick primitive checks
+    if (
+      p.isFirst !== n.isFirst ||
+      p.isLast !== n.isLast ||
+      p.isGeocoding !== n.isGeocoding
+    ) {
+      return false;
+    }
+  
+    // Check if the event object itself has meaningfully changed.
+    // We compare stringified complex data and primitive keys that affect rendering.
+    if (
+      p.event.id !== n.event.id ||
+      p.event.title !== n.event.title ||
+      p.event.description !== n.event.description ||
+      p.event.startTime !== n.event.startTime ||
+      p.event.durationMinutes !== n.event.durationMinutes ||
+      p.event.locationName !== n.event.locationName ||
+      p.event.isAiEnriched !== n.event.isAiEnriched ||
+      p.event.practicalInfo !== n.event.practicalInfo || // This is a stringified JSON
+      p.event.transportSuggestions !== n.event.transportSuggestions || // This is a stringified JSON
+      p.event.lat !== n.event.lat ||
+      p.event.lng !== n.event.lng ||
+      (p.event.attachments?.length || 0) !== (n.event.attachments?.length || 0)
+    ) {
+      return false;
+    }
+  
+    // If we reach here, we assume the props are equal enough to skip a re-render.
+    return true;
+  };
+
+export default React.memo(EventCardComponent, eventPropsAreEqual);

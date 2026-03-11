@@ -190,4 +190,22 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
   return null;
 }
 
-export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent);
+const transportPropsAreEqual = (prevProps: TransportSuggestionCardProps, nextProps: TransportSuggestionCardProps) => {
+    const p = prevProps;
+    const n = nextProps;
+  
+    // Compare the data that drives the component's state and rendering
+    if (
+      p.savedSuggestionsJSON !== n.savedSuggestionsJSON ||
+      p.startEvent?.id !== n.startEvent?.id ||
+      p.endEvent?.id !== n.endEvent?.id ||
+      p.startEvent?.locationName !== n.startEvent?.locationName ||
+      p.endEvent?.locationName !== n.endEvent?.locationName
+    ) {
+      return false;
+    }
+  
+    return true;
+  };
+
+export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent, transportPropsAreEqual);
