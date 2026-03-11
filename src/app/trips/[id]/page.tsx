@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -6,6 +7,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { updateDoc } from 'firebase/firestore';
 
 import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
@@ -61,6 +63,7 @@ interface Day {
     startLng?: number;
     endLat?: number;
     endLng?: number;
+    transportSuggestions?: string;
 }
 
 const eventFormSchema = z.object({
@@ -160,15 +163,21 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   }, [eventForm]);
 
   const handleEventFormSubmit = useCallback(async (values: EventFormValues) => {
+    const currentEvents = eventsRef.current;
     if (!user || !firestore || !selectedDayId) {
       toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
       return;
     }
 
+    // Close dialog first to avoid it being stuck if the following logic is heavy or triggers many re-renders
     setIsEventFormOpen(false);
+    
+    // Yield to the main thread before doing the heavy lifting
+    await new Promise(resolve => setTimeout(resolve, 0));
 
     try {
         if (currentEvent) {
+            // Edit existing event
             const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
             const dataToUpdate = {
                 title: values.title,
@@ -178,15 +187,16 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 locationName: values.locationName || '',
                 updatedAt: serverTimestamp(),
             };
-            await updateDocumentNonBlocking(eventRef, dataToUpdate);
+            await updateDoc(eventRef, dataToUpdate);
             toast({ title: 'Événement mis à jour !', description: `L'événement "${values.title}" a été modifié.` });
         } else {
-            const orderIndex = eventsRef.current?.length || 0;
+            // Add new event
+            const orderIndex = currentEvents?.length || 0;
             const eventId = uuidv4();
             const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
             
             const eventData = {
-                id: eventId,
+                id: eventId, // explicit ID for client-side state updates
                 dayId: selectedDayId,
                 type: values.type,
                 title: values.title,
@@ -208,7 +218,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             toast({ title: 'Événement ajouté !', description: `L'événement "${values.title}" a été ajouté.` });
         }
     } catch (error) {
-        console.error("Failed to save event:", error);
+         console.error("Failed to save event:", error);
         toast({
             variant: "destructive",
             title: "Oh non ! Une erreur est survenue.",
@@ -279,7 +289,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             ? { startLat: lat, startLng: lng }
             : { endLat: lat, endLng: lng };
 
-        updateDocumentNonBlocking(dayRef, updateData);
+        await updateDoc(dayRef, updateData);
 
         toast({ title: 'Géolocalisation réussie', description: `${locationName} a été localisé.` });
 
@@ -306,7 +316,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         const { lat, lng } = await geocodeLocation({ location: eventToGeocode.locationName });
 
         const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
-        updateDocumentNonBlocking(eventRef, { lat, lng, updatedAt: serverTimestamp() });
+        await updateDoc(eventRef, { lat, lng, updatedAt: serverTimestamp() });
 
         toast({ title: 'Géolocalisation réussie', description: `${eventToGeocode.locationName} a été localisé.` });
 
@@ -591,7 +601,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
         const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
         
-        updateDocumentNonBlocking(eventRef, {
+        await updateDoc(eventRef, {
             description: enrichedData.description,
             practicalInfo: JSON.stringify(enrichedData.practicalInfo),
             isAiEnriched: true,
@@ -611,23 +621,33 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   }, [user, firestore, tripId, selectedDayId, toast]);
   
   const handleGenerateTransportSuggestions = useCallback(async (startEvent: EventType, endEvent: EventType): Promise<Suggestion[] | undefined> => {
-    if (!user || !firestore || !selectedDayId || !startEvent.id) {
+    if (!user || !firestore || !selectedDayId) {
         throw new Error("Impossible de sauvegarder les suggestions de trajet.");
     }
     
     const result = await getTransportSuggestions({ startEvent, endEvent });
 
-    const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', startEvent.id);
-    
-    updateDocumentNonBlocking(eventRef, {
-        transportSuggestions: JSON.stringify(result.suggestions),
-        updatedAt: serverTimestamp()
-    });
+    if (startEvent.id) {
+        // It's a regular event-to-event suggestion
+        const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', startEvent.id);
+        
+        await updateDoc(eventRef, {
+            transportSuggestions: JSON.stringify(result.suggestions),
+            updatedAt: serverTimestamp()
+        });
+    } else {
+        // It's the day-start-to-first-event suggestion
+        const dayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId);
+        await updateDoc(dayRef, {
+            transportSuggestions: JSON.stringify(result.suggestions),
+            updatedAt: serverTimestamp()
+        });
+    }
 
     return result.suggestions;
   }, [user, firestore, selectedDayId, tripId]);
 
-  const handleAddAttachment = useCallback((eventId: string, newAttachment: Attachment) => {
+  const handleAddAttachment = useCallback(async (eventId: string, newAttachment: Attachment) => {
     const currentEvents = eventsRef.current;
     if (!selectedDayId || !currentEvents || !user || !firestore) return;
 
@@ -637,7 +657,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     const updatedAttachments = [...(eventToUpdate.attachments || []), newAttachment];
     const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
 
-    updateDocumentNonBlocking(eventRef, { attachments: updatedAttachments, updatedAt: serverTimestamp() });
+    await updateDoc(eventRef, { attachments: updatedAttachments, updatedAt: serverTimestamp() });
 
     toast({
       title: "Pièce jointe ajoutée",
@@ -969,48 +989,49 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                     <Skeleton className="h-24 w-full" />
                                 </>
                             ) : dayEvents.length > 0 ? (
-                               dayEvents.map((event, index) => (
-                                 <React.Fragment key={event.id}>
-                                    {index === 0 && (startLocation || selectedDay?.startLat) && (
+                                <>
+                                    {(startLocation || selectedDay?.startLat) && (
                                         <TransportSuggestionCard 
                                             startEvent={startOfDayEvent as any}
                                             endEvent={dayEvents[0] as any}
-                                            savedSuggestionsJSON={null}
+                                            savedSuggestionsJSON={selectedDay?.transportSuggestions}
                                             onGenerate={handleGenerateTransportSuggestions as any}
                                         />
                                     )}
-                                    <EventCard 
-                                      key={event.id}
-                                      event={event} 
-                                      onEnrich={handleEnrichEvent} 
-                                      onAddAttachment={handleAddAttachment}
-                                      onMove={handleMoveEvent}
-                                      onGeocode={handleGeocodeEvent}
-                                      onDelete={handleDeleteEvent}
-                                      onEdit={handleOpenEventForm}
-                                      isFirst={index === 0}
-                                      isLast={index === dayEvents.length - 1}
-                                      isGeocoding={isGeocoding === event.id}
-                                    />
-                                    {index < dayEvents.length - 1 ? (
-                                        <TransportSuggestionCard 
-                                            startEvent={event as any}
-                                            endEvent={dayEvents[index + 1] as any}
-                                            savedSuggestionsJSON={event.transportSuggestions}
-                                            onGenerate={handleGenerateTransportSuggestions as any}
+                                    {dayEvents.map((event, index) => (
+                                    <React.Fragment key={event.id}>
+                                        <EventCard 
+                                        event={event} 
+                                        onEnrich={handleEnrichEvent} 
+                                        onAddAttachment={handleAddAttachment}
+                                        onMove={handleMoveEvent}
+                                        onGeocode={handleGeocodeEvent}
+                                        onDelete={handleDeleteEvent}
+                                        onEdit={handleOpenEventForm}
+                                        isFirst={index === 0}
+                                        isLast={index === dayEvents.length - 1}
+                                        isGeocoding={isGeocoding === event.id}
                                         />
-                                    ) : (
-                                        (endLocation || selectedDay?.endLat) && (
+                                        {index < dayEvents.length - 1 ? (
                                             <TransportSuggestionCard 
                                                 startEvent={event as any}
-                                                endEvent={endOfDayEvent as any}
+                                                endEvent={dayEvents[index + 1] as any}
                                                 savedSuggestionsJSON={event.transportSuggestions}
                                                 onGenerate={handleGenerateTransportSuggestions as any}
                                             />
-                                        )
-                                    )}
-                                 </React.Fragment>
-                               ))
+                                        ) : (
+                                            (endLocation || selectedDay?.endLat) && (
+                                                <TransportSuggestionCard 
+                                                    startEvent={event as any}
+                                                    endEvent={endOfDayEvent as any}
+                                                    savedSuggestionsJSON={event.transportSuggestions}
+                                                    onGenerate={handleGenerateTransportSuggestions as any}
+                                                />
+                                            )
+                                        )}
+                                    </React.Fragment>
+                                    ))}
+                                </>
                             ) : (
                                 <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
                                     <p className="text-slate-400">Aucun événement pour ce jour.</p>
@@ -1136,3 +1157,5 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
