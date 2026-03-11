@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -30,7 +29,7 @@ interface TransportSuggestionCardProps {
   startEvent: { id?: string } & Omit<TransportSuggestionInput['startEvent'], 'id'>;
   endEvent: TransportSuggestionInput['endEvent'];
   savedSuggestionsJSON: string | null | undefined;
-  onGenerate: () => Promise<Suggestion[] | undefined>;
+  onGenerate: () => Promise<any>;
 }
 
 const modeIcons: Record<string, React.ElementType> = {
@@ -43,34 +42,33 @@ const modeIcons: Record<string, React.ElementType> = {
 };
 
 export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestionsJSON, onGenerate }: TransportSuggestionCardProps) {
-  const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  useEffect(() => {
-    setError(null);
+  // Use useMemo to parse suggestions only when the JSON string changes.
+  // This is a major performance optimization to prevent re-parsing on every render.
+  const suggestions: Suggestion[] | null = useMemo(() => {
     if (!savedSuggestionsJSON) {
-        setSuggestions(null);
-        return;
+      return null;
     }
     try {
-        const newSuggestions = JSON.parse(savedSuggestionsJSON);
-        
-        setSuggestions(currentSuggestions => {
-            // Only update state if the content has actually changed to prevent re-render loops.
-            if (JSON.stringify(newSuggestions) !== JSON.stringify(currentSuggestions)) {
-                return newSuggestions;
-            }
-            return currentSuggestions;
-        });
-
+      return JSON.parse(savedSuggestionsJSON);
     } catch (e) {
-        console.error("Failed to parse transport suggestions:", e);
-        setError("Impossible de charger les suggestions.");
-        setSuggestions(null);
+      console.error("Failed to parse transport suggestions:", e);
+      // Return null on parsing error. The effect below will handle setting the error message.
+      return null; 
     }
   }, [savedSuggestionsJSON]);
+  
+  // This effect handles showing an error if parsing fails, a side-effect that shouldn't be in useMemo.
+  useEffect(() => {
+    if (savedSuggestionsJSON && !suggestions) {
+       setError("Impossible de charger les suggestions : données corrompues.");
+    } else {
+       setError(null);
+    }
+  }, [savedSuggestionsJSON, suggestions]);
 
 
   const canGenerate = (startEvent.lat && startEvent.lng && endEvent.lat && endEvent.lng) || (startEvent.locationName && endEvent.locationName);
@@ -85,13 +83,13 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
     setIsLoading(true);
     setError(null);
     try {
-      const result = await onGenerate();
-      if (result) {
-        setSuggestions(result);
-        setIsExpanded(true); // Automatically expand when new suggestions are generated
-      }
+      // onGenerate updates Firestore. The new `savedSuggestionsJSON` prop will
+      // flow down from the parent, and `useMemo` will re-calculate `suggestions`.
+      await onGenerate();
+      setIsExpanded(true); // Optimistically expand the UI after generation is triggered
     } catch (e: any) {
-      setError(e.message || 'Une erreur est survenue.');
+      setError(e.message || 'Une erreur est survenue lors de la génération.');
+      setIsExpanded(false);
     } finally {
       setIsLoading(false);
     }
