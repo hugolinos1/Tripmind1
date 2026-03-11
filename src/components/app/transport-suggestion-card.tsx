@@ -42,6 +42,22 @@ const modeIcons: Record<string, React.ElementType> = {
   other: HelpCircle,
 };
 
+function deepEqual(objA: any, objB: any): boolean {
+    if (objA === objB) return true;
+    if (typeof objA !== 'object' || objA === null || typeof objB !== 'object' || objB === null) {
+        return false;
+    }
+    const keysA = Object.keys(objA);
+    const keysB = Object.keys(objB);
+    if (keysA.length !== keysB.length) return false;
+    for (const key of keysA) {
+        if (!keysB.includes(key) || !deepEqual(objA[key], objB[key])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) => {
   const { startEvent, endEvent, savedSuggestionsJSON, onGenerate } = props;
 
@@ -191,14 +207,15 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
 }
 
 const transportPropsAreEqual = (prevProps: TransportSuggestionCardProps, nextProps: TransportSuggestionCardProps) => {
-    // Fast check for JSON string. If this changed, content definitely changed.
-    if (prevProps.savedSuggestionsJSON !== nextProps.savedSuggestionsJSON) {
+    if (
+        prevProps.savedSuggestionsJSON !== nextProps.savedSuggestionsJSON ||
+        prevProps.onGenerate !== nextProps.onGenerate
+    ) {
         return false;
     }
     
-    // Deep compare start and end events
-    return JSON.stringify(prevProps.startEvent) === JSON.stringify(nextProps.startEvent) &&
-           JSON.stringify(prevProps.endEvent) === JSON.stringify(nextProps.endEvent);
+    return deepEqual(prevProps.startEvent, nextProps.startEvent) &&
+           deepEqual(prevProps.endEvent, nextProps.endEvent);
 };
 
 export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent, transportPropsAreEqual);

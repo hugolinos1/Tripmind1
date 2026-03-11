@@ -60,6 +60,22 @@ const eventTypeConfig = {
   activity: { color: "border-event-activity", icon: Star },
 };
 
+function deepEqual(objA: any, objB: any): boolean {
+    if (objA === objB) return true;
+    if (typeof objA !== 'object' || objA === null || typeof objB !== 'object' || objB === null) {
+        return false;
+    }
+    const keysA = Object.keys(objA);
+    const keysB = Object.keys(objB);
+    if (keysA.length !== keysB.length) return false;
+    for (const key of keysA) {
+        if (!keysB.includes(key) || !deepEqual(objA[key], objB[key])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 const EventCardComponent = (props: EventCardProps) => {
   const { event, onEnrich, onAddAttachment, onMove, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding } = props;
 
@@ -255,17 +271,23 @@ const EventCardComponent = (props: EventCardProps) => {
 };
 
 const eventPropsAreEqual = (prevProps: EventCardProps, nextProps: EventCardProps) => {
-    // Quick primitive checks
+    // Compare primitive props first for a quick exit
     if (
       prevProps.isFirst !== nextProps.isFirst ||
       prevProps.isLast !== nextProps.isLast ||
-      prevProps.isGeocoding !== nextProps.isGeocoding
+      prevProps.isGeocoding !== nextProps.isGeocoding ||
+      prevProps.onEnrich !== nextProps.onEnrich ||
+      prevProps.onAddAttachment !== nextProps.onAddAttachment ||
+      prevProps.onMove !== nextProps.onMove ||
+      prevProps.onGeocode !== nextProps.onGeocode ||
+      prevProps.onDelete !== nextProps.onDelete ||
+      prevProps.onEdit !== nextProps.onEdit
     ) {
       return false;
     }
   
-    // Deep comparison for the event object
-    return JSON.stringify(prevProps.event) === JSON.stringify(nextProps.event);
+    // If primitive props are the same, perform a deep comparison on the event object.
+    return deepEqual(prevProps.event, nextProps.event);
 };
 
 export default React.memo(EventCardComponent, eventPropsAreEqual);

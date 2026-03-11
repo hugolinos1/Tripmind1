@@ -22,7 +22,7 @@ import Link from 'next/link';
 import EventCard from '@/components/app/event-card';
 import type { Event as EventType, Attachment, EventCardProps } from '@/components/app/event-card';
 import { TransportSuggestionCard } from '@/components/app/transport-suggestion-card';
-import { type TransportSuggestionCardProps } from '@/components/app/transport-suggestion-card';
+import type { TransportSuggestionCardProps } from '@/components/app/transport-suggestion-card';
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -41,7 +41,6 @@ import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/no
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useWhyDidYouUpdate } from '@/hooks/use-why-did-you-update';
 
 
 const MapView = dynamic(() => import('@/components/app/map-view'), {
@@ -76,17 +75,6 @@ const eventFormSchema = z.object({
 type EventFormValues = z.infer<typeof eventFormSchema>;
   
 type Suggestion = TransportSuggestionOutput['suggestions'][0];
-
-const LoggedEventCard = (props: EventCardProps) => {
-  useWhyDidYouUpdate('EventCard', props);
-  return <EventCard {...props} />;
-};
-
-const LoggedTransportSuggestionCard = (props: TransportSuggestionCardProps) => {
-  useWhyDidYouUpdate('TransportSuggestionCard', props);
-  return <TransportSuggestionCard {...props} />;
-};
-
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
@@ -975,14 +963,14 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                dayEvents.map((event, index) => (
                                  <React.Fragment key={event.id}>
                                     {index === 0 && (startLocation || selectedDay?.startLat) && (
-                                        <LoggedTransportSuggestionCard 
+                                        <TransportSuggestionCard 
                                             startEvent={startOfDayEvent}
                                             endEvent={dayEvents[0]}
                                             savedSuggestionsJSON={null}
                                             onGenerate={handleGenerateTransportSuggestions}
                                         />
                                     )}
-                                    <LoggedEventCard 
+                                    <EventCard 
                                       event={event} 
                                       onEnrich={handleEnrichEvent} 
                                       onAddAttachment={handleAddAttachment}
@@ -995,7 +983,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                       isGeocoding={isGeocoding === event.id}
                                     />
                                     {index < dayEvents.length - 1 ? (
-                                        <LoggedTransportSuggestionCard 
+                                        <TransportSuggestionCard 
                                             startEvent={event}
                                             endEvent={dayEvents[index + 1]}
                                             savedSuggestionsJSON={event.transportSuggestions}
@@ -1003,7 +991,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         />
                                     ) : (
                                         (endLocation || selectedDay?.endLat) && (
-                                            <LoggedTransportSuggestionCard 
+                                            <TransportSuggestionCard 
                                                 startEvent={event}
                                                 endEvent={endOfDayEvent}
                                                 savedSuggestionsJSON={event.transportSuggestions}
