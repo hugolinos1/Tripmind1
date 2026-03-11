@@ -222,7 +222,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         setStartLocation('');
         setEndLocation('');
     }
-  }, [selectedDay?.startLocationName, selectedDay?.endLocationName]);
+  }, [selectedDay]);
 
   const handleLocationUpdate = useCallback((field: 'start' | 'end', value: string) => {
     if (!user || !firestore || !selectedDayId) return;
@@ -243,12 +243,10 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     updateDocumentNonBlocking(dayRef, updateData);
 
     // If updating the end location, also update the start location of the next day
-    if (field === 'end') {
-        const nextDay = days?.[selectedDayIndex + 1];
-        if (nextDay) {
-            const nextDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', nextDay.id);
-            updateDocumentNonBlocking(nextDayRef, { startLocationName: value, startLat: null, startLng: null });
-        }
+    const nextDay = days?.[selectedDayIndex + 1];
+    if (field === 'end' && nextDay) {
+        const nextDayRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', nextDay.id);
+        updateDocumentNonBlocking(nextDayRef, { startLocationName: value, startLat: null, startLng: null });
     }
   }, [user, firestore, tripId, selectedDayId, days, selectedDayIndex]);
 
@@ -328,10 +326,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         const diffTime = tripEndDate.getTime() - tripStartDate.getTime();
         const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
-        let lastEndLocation = "";
-        let lastEndLat = null;
-        let lastEndLng = null;
-
         for (let i = 0; i <= diffDays; i++) {
             const dayDate = new Date(tripStartDate);
             dayDate.setDate(dayDate.getDate() + i);
@@ -344,18 +338,16 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 date: dayDate,
                 orderIndex: i,
                 notes: "",
-                startLocationName: lastEndLocation,
+                startLocationName: i > 0 ? "" : tripData.destinations[0] || "", // Only set for first day, others inherit
                 endLocationName: "",
-                startLat: lastEndLat,
-                startLng: lastEndLng,
+                startLat: null,
+                startLng: null,
                 endLat: null,
                 endLng: null,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
             batch.set(dayRef, dayData);
-            // For the next day, the start location will be this day's end location.
-            // Since end location is initially empty, this will be handled by user input later.
         }
         await batch.commit();
         toast({ title: "Jours créés !", description: "Vous pouvez maintenant ajouter des événements à chaque jour." });
@@ -955,7 +947,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                             startEvent={{ title: 'Lieu de départ', locationName: startLocation, lat: selectedDay?.startLat, lng: selectedDay?.startLng }}
                                             endEvent={event}
                                             savedSuggestionsJSON={null}
-                                            onGenerate={async () => undefined}
+                                            onGenerate={handleGenerateTransportSuggestions}
                                         />
                                     )}
                                     <EventCard 
@@ -975,7 +967,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                             startEvent={event}
                                             endEvent={dayEvents[index + 1]}
                                             savedSuggestionsJSON={event.transportSuggestions}
-                                            onGenerate={() => handleGenerateTransportSuggestions(event, dayEvents[index + 1])}
+                                            onGenerate={handleGenerateTransportSuggestions}
                                         />
                                     ) : (
                                         (endLocation || selectedDay?.endLat) && (
@@ -983,7 +975,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                                 startEvent={event}
                                                 endEvent={{ id: 'end-of-day', title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng, type: 'activity', isAiEnriched: false, orderIndex: -1 }}
                                                 savedSuggestionsJSON={event.transportSuggestions}
-                                                onGenerate={() => handleGenerateTransportSuggestions(event, { id: 'end-of-day', title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng, type: 'activity', isAiEnriched: false, orderIndex: -1 })}
+                                                onGenerate={handleGenerateTransportSuggestions}
                                             />
                                         )
                                     )}
@@ -1115,4 +1107,3 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   );
 }
 
-    

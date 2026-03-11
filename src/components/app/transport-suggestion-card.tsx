@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -29,7 +30,7 @@ interface TransportSuggestionCardProps {
   startEvent: { id?: string } & Omit<TransportSuggestionInput['startEvent'], 'id'>;
   endEvent: TransportSuggestionInput['endEvent'];
   savedSuggestionsJSON: string | null | undefined;
-  onGenerate: () => Promise<any>;
+  onGenerate: (startEvent: TransportSuggestionInput['startEvent'], endEvent: TransportSuggestionInput['endEvent']) => Promise<any>;
 }
 
 const modeIcons: Record<string, React.ElementType> = {
@@ -46,8 +47,6 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Use useMemo to parse suggestions only when the JSON string changes.
-  // This is a major performance optimization to prevent re-parsing on every render.
   const suggestions: Suggestion[] | null = useMemo(() => {
     if (!savedSuggestionsJSON) {
       return null;
@@ -56,12 +55,10 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
       return JSON.parse(savedSuggestionsJSON);
     } catch (e) {
       console.error("Failed to parse transport suggestions:", e);
-      // Return null on parsing error. The effect below will handle setting the error message.
       return null; 
     }
   }, [savedSuggestionsJSON]);
   
-  // This effect handles showing an error if parsing fails, a side-effect that shouldn't be in useMemo.
   useEffect(() => {
     if (savedSuggestionsJSON && !suggestions) {
        setError("Impossible de charger les suggestions : données corrompues.");
@@ -83,10 +80,8 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
     setIsLoading(true);
     setError(null);
     try {
-      // onGenerate updates Firestore. The new `savedSuggestionsJSON` prop will
-      // flow down from the parent, and `useMemo` will re-calculate `suggestions`.
-      await onGenerate();
-      setIsExpanded(true); // Optimistically expand the UI after generation is triggered
+      await onGenerate(startEvent, endEvent);
+      setIsExpanded(true);
     } catch (e: any) {
       setError(e.message || 'Une erreur est survenue lors de la génération.');
       setIsExpanded(false);
