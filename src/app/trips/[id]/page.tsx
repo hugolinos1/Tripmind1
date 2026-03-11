@@ -1123,6 +1123,15 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                               <FormMessage />
                           </FormItem>
                       )}/>
+                      <FormField control={eventForm.control} name="notes" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Commentaires</FormLabel>
+                              <FormControl>
+                                <Textarea placeholder="Ajoutez vos notes personnelles ici..." {...field} className="resize-y" />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}/>
                       <FormField control={eventForm.control} name="type" render={({ field }) => (
                           <FormItem>
                               <FormLabel>Type</FormLabel>
@@ -1159,15 +1168,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                           <FormItem>
                               <FormLabel>Lieu (optionnel)</FormLabel>
                               <FormControl><Input placeholder="Nom ou addresse du lieu" {...field} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                      )}/>
-                      <FormField control={eventForm.control} name="notes" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Commentaires</FormLabel>
-                              <FormControl>
-                                <Textarea placeholder="Ajoutez vos notes personnelles ici..." {...field} className="resize-y" />
-                              </FormControl>
                               <FormMessage />
                           </FormItem>
                       )}/>
