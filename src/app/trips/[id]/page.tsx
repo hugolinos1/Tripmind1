@@ -19,9 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import EventCard from '@/components/app/event-card';
-import type { Event as EventType, Attachment, EventCardProps } from '@/components/app/event-card';
+import type { Event as EventType, Attachment } from '@/components/app/event-card';
 import { TransportSuggestionCard } from '@/components/app/transport-suggestion-card';
-import type { TransportSuggestionCardProps } from '@/components/app/transport-suggestion-card';
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -133,7 +132,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       locationName: '',
     },
   });
-
+  
   const handleOpenEventForm = useCallback((event: EventType | null) => {
     setCurrentEvent(event);
     if (event) {
@@ -154,7 +153,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       });
     }
     setIsEventFormOpen(true);
-  }, [eventForm]);
+  }, [eventForm.reset]);
 
   const handleEventFormSubmit = useCallback(async (values: EventFormValues) => {
     const currentEvents = eventsRef.current;
@@ -207,13 +206,13 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-      setDocumentNonBlocking(eventRef, eventData, { merge: false });
+      setDocumentNonBlocking(eventRef, eventData);
       toast({ title: 'Événement ajouté !', description: `L'événement "${values.title}" a été ajouté.` });
     }
 
     setCurrentEvent(null);
     eventForm.reset();
-  }, [currentEvent, eventForm, firestore, user, tripId, toast, selectedDayId]);
+  }, [currentEvent, eventForm.reset, firestore, user, tripId, toast, selectedDayId]);
 
   // Reset selected day if days change
   useEffect(() => {
@@ -965,7 +964,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                 </>
                             ) : dayEvents.length > 0 ? (
                                dayEvents.map((event, index) => (
-                                 <React.Fragment key={event.id}>
+                                 <React.Fragment key={`fragment-${event.id}`}>
                                     {index === 0 && (startLocation || selectedDay?.startLat) && (
                                         <TransportSuggestionCard 
                                             startEvent={startOfDayEvent as any}
@@ -975,13 +974,14 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         />
                                     )}
                                     <EventCard 
+                                      key={event.id}
                                       event={event} 
                                       onEnrich={handleEnrichEvent} 
                                       onAddAttachment={handleAddAttachment}
                                       onMove={handleMoveEvent}
                                       onGeocode={handleGeocodeEvent}
                                       onDelete={handleDeleteEvent}
-                                      onEdit={() => handleOpenEventForm(event)}
+                                      onEdit={handleOpenEventForm}
                                       isFirst={index === 0}
                                       isLast={index === dayEvents.length - 1}
                                       isGeocoding={isGeocoding === event.id}
@@ -1130,5 +1130,3 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    
