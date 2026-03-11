@@ -253,25 +253,18 @@ const EventCardComponent = (props: EventCardProps) => {
   );
 };
 
-function propsAreEqual(prevProps: Readonly<EventCardProps>, nextProps: Readonly<EventCardProps>): boolean {
-    // Perform a deep comparison on the 'event' prop
-    const eventsAreEqual = JSON.stringify(prevProps.event) === JSON.stringify(nextProps.event);
-
-    // Perform a shallow comparison on the other props
-    const otherPropsAreEqual =
-        prevProps.isFirst === nextProps.isFirst &&
-        prevProps.isLast === nextProps.isLast &&
-        prevProps.isGeocoding === nextProps.isGeocoding &&
-        prevProps.onEnrich === nextProps.onEnrich &&
-        prevProps.onAddAttachment === nextProps.onAddAttachment &&
-        prevProps.onMove === nextProps.onMove &&
-        prevProps.onGeocode === nextProps.onGeocode &&
-        prevProps.onDelete === nextProps.onDelete &&
-        prevProps.onEdit === nextProps.onEdit;
-
-    return eventsAreEqual && otherPropsAreEqual;
+function propsAreEqual(prevProps: Readonly<EventCardProps>, nextProps: Readonly<EventCardProps>) {
+  // Only compare primitive props and stringified event object.
+  // Functions are assumed to be stable via useCallback in the parent.
+  if (
+    prevProps.isFirst !== nextProps.isFirst ||
+    prevProps.isLast !== nextProps.isLast ||
+    prevProps.isGeocoding !== nextProps.isGeocoding
+  ) {
+    return false;
+  }
+  return JSON.stringify(prevProps.event) === JSON.stringify(nextProps.event);
 }
-
 
 const EventCard = React.memo(EventCardComponent, propsAreEqual);
 

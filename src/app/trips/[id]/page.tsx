@@ -157,59 +157,64 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     setIsEventFormOpen(true);
   }, [eventForm]);
 
-  const handleEventFormSubmit = useCallback((values: EventFormValues) => {
-    const currentEvents = eventsRef.current;
-    if (!user || !firestore || !selectedDayId) {
-      toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
-      return;
-    }
-  
-    if (currentEvent) {
-      // Edit existing event
-      const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
-      const dataToUpdate = {
-        title: values.title,
-        type: values.type,
-        startTime: values.startTime || null,
-        durationMinutes: values.durationMinutes || null,
-        locationName: values.locationName || '',
-        updatedAt: serverTimestamp(),
-      };
-      updateDocumentNonBlocking(eventRef, dataToUpdate);
-      toast({ title: 'Événement mis à jour !', description: `L'événement "${values.title}" a été modifié.` });
-    } else {
-      // Add new event
-      const orderIndex = currentEvents?.length || 0;
-      const eventId = uuidv4();
-      const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
-      
-      const eventData = {
-        id: eventId, // explicit ID for client-side state updates
-        dayId: selectedDayId,
-        type: values.type,
-        title: values.title,
-        description: '',
-        startTime: values.startTime || null,
-        durationMinutes: values.durationMinutes || null,
-        locationName: values.locationName || '',
-        lat: null,
-        lng: null,
-        orderIndex: orderIndex,
-        isAiEnriched: false,
-        photos: [],
-        practicalInfo: JSON.stringify({}),
-        attachments: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      setDocumentNonBlocking(eventRef, eventData, { merge: false });
-      toast({ title: 'Événement ajouté !', description: `L'événement "${values.title}" a été ajouté.` });
-    }
-
+  const handleEventFormSubmit = (values: EventFormValues) => {
+    // Close dialog immediately to make UI responsive
     setIsEventFormOpen(false);
-    setCurrentEvent(null);
-    eventForm.reset();
-  }, [currentEvent, eventForm, firestore, user, tripId, toast, selectedDayId]);
+
+    // Yield to the main thread before performing Firestore updates and resetting the form.
+    setTimeout(() => {
+        const currentEvents = eventsRef.current;
+        if (!user || !firestore || !selectedDayId) {
+          toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
+          return;
+        }
+      
+        if (currentEvent) {
+          // Edit existing event
+          const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
+          const dataToUpdate = {
+            title: values.title,
+            type: values.type,
+            startTime: values.startTime || null,
+            durationMinutes: values.durationMinutes || null,
+            locationName: values.locationName || '',
+            updatedAt: serverTimestamp(),
+          };
+          updateDocumentNonBlocking(eventRef, dataToUpdate);
+          toast({ title: 'Événement mis à jour !', description: `L'événement "${values.title}" a été modifié.` });
+        } else {
+          // Add new event
+          const orderIndex = currentEvents?.length || 0;
+          const eventId = uuidv4();
+          const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
+          
+          const eventData = {
+            id: eventId,
+            dayId: selectedDayId,
+            type: values.type,
+            title: values.title,
+            description: '',
+            startTime: values.startTime || null,
+            durationMinutes: values.durationMinutes || null,
+            locationName: values.locationName || '',
+            lat: null,
+            lng: null,
+            orderIndex: orderIndex,
+            isAiEnriched: false,
+            photos: [],
+            practicalInfo: JSON.stringify({}),
+            attachments: [],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          };
+          setDocumentNonBlocking(eventRef, eventData, { merge: true });
+          toast({ title: 'Événement ajouté !', description: `L'événement "${values.title}" a été ajouté.` });
+        }
+
+        setCurrentEvent(null);
+        eventForm.reset();
+    }, 0);
+  };
 
   // Reset selected day if days change
   useEffect(() => {
@@ -960,47 +965,49 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                     <Skeleton className="h-24 w-full" />
                                 </>
                             ) : dayEvents.length > 0 ? (
-                               dayEvents.map((event, index) => (
-                                 <React.Fragment key={event.id}>
-                                    {index === 0 && (startLocation || selectedDay?.startLat) && (
-                                        <TransportSuggestionCard 
-                                            startEvent={startOfDayEvent}
-                                            endEvent={dayEvents[0]}
-                                            savedSuggestionsJSON={null}
-                                            onGenerate={handleGenerateTransportSuggestions}
-                                        />
-                                    )}
-                                    <EventCard 
-                                      event={event} 
-                                      onEnrich={handleEnrichEvent} 
-                                      onAddAttachment={handleAddAttachment}
-                                      onMove={handleMoveEvent}
-                                      onGeocode={handleGeocodeEvent}
-                                      onDelete={handleDeleteEvent}
-                                      onEdit={handleOpenEventForm}
-                                      isFirst={index === 0}
-                                      isLast={index === dayEvents.length - 1}
-                                      isGeocoding={isGeocoding === event.id}
+                               dayEvents.map((event, index) => [
+                                (index === 0 && (startLocation || selectedDay?.startLat)) && (
+                                    <TransportSuggestionCard
+                                        key={`${event.id}-transport-start`}
+                                        startEvent={startOfDayEvent}
+                                        endEvent={dayEvents[0]}
+                                        savedSuggestionsJSON={null}
+                                        onGenerate={handleGenerateTransportSuggestions}
                                     />
-                                    {index < dayEvents.length - 1 ? (
-                                        <TransportSuggestionCard 
+                                ),
+                                <EventCard
+                                    key={event.id}
+                                    event={event}
+                                    onEnrich={handleEnrichEvent}
+                                    onAddAttachment={handleAddAttachment}
+                                    onMove={handleMoveEvent}
+                                    onGeocode={handleGeocodeEvent}
+                                    onDelete={handleDeleteEvent}
+                                    onEdit={handleOpenEventForm}
+                                    isFirst={index === 0}
+                                    isLast={index === dayEvents.length - 1}
+                                    isGeocoding={isGeocoding === event.id}
+                                />,
+                                (index < dayEvents.length - 1)
+                                    ? (
+                                        <TransportSuggestionCard
+                                            key={`${event.id}-transport-mid`}
                                             startEvent={event}
                                             endEvent={dayEvents[index + 1]}
                                             savedSuggestionsJSON={event.transportSuggestions}
                                             onGenerate={handleGenerateTransportSuggestions}
                                         />
-                                    ) : (
-                                        (endLocation || selectedDay?.endLat) && (
-                                            <TransportSuggestionCard 
-                                                startEvent={event}
-                                                endEvent={endOfDayEvent}
-                                                savedSuggestionsJSON={event.transportSuggestions}
-                                                onGenerate={handleGenerateTransportSuggestions}
-                                            />
-                                        )
-                                    )}
-                                 </React.Fragment>
-                               ))
+                                    )
+                                    : ((endLocation || selectedDay?.endLat) && (
+                                        <TransportSuggestionCard
+                                            key={`${event.id}-transport-end`}
+                                            startEvent={event}
+                                            endEvent={endOfDayEvent}
+                                            savedSuggestionsJSON={event.transportSuggestions}
+                                            onGenerate={handleGenerateTransportSuggestions}
+                                        />
+                                    ))
+                                ])
                             ) : (
                                 <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
                                     <p className="text-slate-400">Aucun événement pour ce jour.</p>

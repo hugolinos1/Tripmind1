@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -71,7 +71,7 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
 
   const canGenerate = (startEvent.lat && startEvent.lng && endEvent.lat && endEvent.lng) || (startEvent.locationName && endEvent.locationName);
 
-  const handleGenerateClick = async () => {
+  const handleGenerateClick = useCallback(async () => {
     if (!startEvent.id) {
         setError("La génération n'est pas disponible pour les points de départ/arrivée généraux.");
         return;
@@ -89,7 +89,7 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [startEvent, endEvent, onGenerate, canGenerate]);
   
   const showGenerateButton = !suggestions && !isLoading && !error && startEvent.id;
 
@@ -190,14 +190,18 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
 }
 
 function propsAreEqual(prevProps: Readonly<TransportSuggestionCardProps>, nextProps: Readonly<TransportSuggestionCardProps>): boolean {
-    const startEventsAreEqual = JSON.stringify(prevProps.startEvent) === JSON.stringify(nextProps.startEvent);
-    const endEventsAreEqual = JSON.stringify(prevProps.endEvent) === JSON.stringify(nextProps.endEvent);
-
-    const otherPropsAreEqual =
-        prevProps.savedSuggestionsJSON === nextProps.savedSuggestionsJSON &&
-        prevProps.onGenerate === nextProps.onGenerate;
-        
-    return startEventsAreEqual && endEventsAreEqual && otherPropsAreEqual;
+    // Only re-render if the suggestions or the endpoints have factually changed.
+    if (prevProps.savedSuggestionsJSON !== nextProps.savedSuggestionsJSON) {
+        return false;
+    }
+    // Deep comparison of start and end events is critical.
+    if (JSON.stringify(prevProps.startEvent) !== JSON.stringify(nextProps.startEvent)) {
+        return false;
+    }
+    if (JSON.stringify(prevProps.endEvent) !== JSON.stringify(nextProps.endEvent)) {
+        return false;
+    }
+    return true;
 }
 
 export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent, propsAreEqual);

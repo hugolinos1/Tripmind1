@@ -58,7 +58,7 @@ export function useCollection<T = any>(
   type StateDataType = ResultItemType[] | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
@@ -69,18 +69,36 @@ export function useCollection<T = any>(
       return;
     }
 
-    setIsLoading(true);
+    // Don't reset loading to true on every query change if data is already present.
+    // It causes a flash of loading content.
+    if (!data) {
+       setIsLoading(true);
+    }
     setError(null);
 
-    // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
-        const results: ResultItemType[] = [];
-        for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
-        }
-        setData(results);
+        const results: ResultItemType[] = snapshot.docs.map(doc => ({ ...(doc.data() as T), id: doc.id }));
+        
+        setData(currentData => {
+            // If there's no current data, this is the initial load.
+            if (!currentData) {
+                return results;
+            }
+            // If the number of documents is different, something has changed.
+            if (currentData.length !== results.length) {
+                return results;
+            }
+            // If the stringified versions are different, something has changed.
+            if (JSON.stringify(currentData) !== JSON.stringify(results)) {
+                return results;
+            }
+            // Otherwise, the data is identical. Return the previous state
+            // to prevent a re-render.
+            return currentData;
+        });
+
         setError(null);
         setIsLoading(false);
       },
@@ -106,7 +124,8 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  }, [memoizedTargetRefOrQuery]);
+  
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
   }
