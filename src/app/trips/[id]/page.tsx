@@ -13,17 +13,17 @@ import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import EventCard from '@/components/app/event-card';
-import type { Event as EventType, Attachment, EventCardProps } from '@/components/app/event-card';
+import type { Event as EventType, Attachment } from '@/components/app/event-card';
 import { TransportSuggestionCard } from '@/components/app/transport-suggestion-card';
-import type { TransportSuggestionCardProps } from '@/components/app/transport-suggestion-card';
 import TripInfo from '@/components/app/trip-info';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -72,6 +72,7 @@ const eventFormSchema = z.object({
     startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Format HH:mm invalide.' }).optional().or(z.literal('')),
     durationMinutes: z.coerce.number().int().positive().optional(),
     locationName: z.string().optional(),
+    notes: z.string().optional(),
   });
   
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -134,6 +135,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       startTime: '',
       durationMinutes: undefined,
       locationName: '',
+      notes: '',
     },
   });
 
@@ -149,6 +151,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           startTime: event.startTime || '',
           durationMinutes: event.durationMinutes || undefined,
           locationName: event.locationName || '',
+          notes: event.notes || '',
         });
       } else {
         eventForm.reset({
@@ -157,68 +160,83 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           startTime: '',
           durationMinutes: undefined,
           locationName: '',
+          notes: '',
         });
       }
     }, 0);
   }, [eventForm]);
 
   const handleEventFormSubmit = useCallback(async (values: EventFormValues) => {
-    const currentEvents = eventsRef.current;
     if (!user || !firestore || !selectedDayId) {
-      toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
-      return;
+        toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
+        return;
     }
-
-    // Close dialog first to avoid it being stuck if the following logic is heavy or triggers many re-renders
-    setIsEventFormOpen(false);
     
-    // Yield to the main thread before doing the heavy lifting
-    await new Promise(resolve => setTimeout(resolve, 0));
+    setIsEventFormOpen(false);
+
+    const eventPromise = new Promise(async (resolve, reject) => {
+        try {
+            if (currentEvent) {
+                // Edit existing event
+                const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
+                const dataToUpdate = {
+                    title: values.title,
+                    type: values.type,
+                    startTime: values.startTime || null,
+                    durationMinutes: values.durationMinutes || null,
+                    locationName: values.locationName || '',
+                    notes: values.notes || '',
+                    updatedAt: serverTimestamp(),
+                };
+                await updateDoc(eventRef, dataToUpdate);
+            } else {
+                // Add new event
+                const orderIndex = eventsRef.current?.length || 0;
+                const eventId = uuidv4();
+                const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
+                
+                const eventData = {
+                    id: eventId,
+                    dayId: selectedDayId,
+                    type: values.type,
+                    title: values.title,
+                    description: '',
+                    notes: values.notes || '',
+                    startTime: values.startTime || null,
+                    durationMinutes: values.durationMinutes || null,
+                    locationName: values.locationName || '',
+                    lat: null,
+                    lng: null,
+                    orderIndex: orderIndex,
+                    isAiEnriched: false,
+                    photos: [],
+                    practicalInfo: JSON.stringify({}),
+                    attachments: [],
+                    transportSuggestions: null,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                };
+                await setDocumentNonBlocking(eventRef, eventData, { merge: false });
+            }
+            resolve(true);
+        } catch (error) {
+            reject(error);
+        }
+    });
+
+    toast({
+        title: currentEvent ? "Mise à jour en cours..." : "Ajout en cours...",
+        description: `L'événement "${values.title}" est en cours de sauvegarde.`,
+    });
 
     try {
-        if (currentEvent) {
-            // Edit existing event
-            const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
-            const dataToUpdate = {
-                title: values.title,
-                type: values.type,
-                startTime: values.startTime || null,
-                durationMinutes: values.durationMinutes || null,
-                locationName: values.locationName || '',
-                updatedAt: serverTimestamp(),
-            };
-            await updateDoc(eventRef, dataToUpdate);
-            toast({ title: 'Événement mis à jour !', description: `L'événement "${values.title}" a été modifié.` });
-        } else {
-            // Add new event
-            const orderIndex = currentEvents?.length || 0;
-            const eventId = uuidv4();
-            const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
-            
-            const eventData = {
-                id: eventId, // explicit ID for client-side state updates
-                dayId: selectedDayId,
-                type: values.type,
-                title: values.title,
-                description: '',
-                startTime: values.startTime || null,
-                durationMinutes: values.durationMinutes || null,
-                locationName: values.locationName || '',
-                lat: null,
-                lng: null,
-                orderIndex: orderIndex,
-                isAiEnriched: false,
-                photos: [],
-                practicalInfo: JSON.stringify({}),
-                attachments: [],
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            };
-            await setDocumentNonBlocking(eventRef, eventData, { merge: false });
-            toast({ title: 'Événement ajouté !', description: `L'événement "${values.title}" a été ajouté.` });
-        }
-    } catch (error) {
-         console.error("Failed to save event:", error);
+        await eventPromise;
+        toast({
+            title: currentEvent ? "Événement mis à jour !" : "Événement ajouté !",
+            description: `L'événement "${values.title}" a été sauvegardé.`,
+        });
+    } catch(error) {
+        console.error("Failed to save event:", error);
         toast({
             variant: "destructive",
             title: "Oh non ! Une erreur est survenue.",
@@ -228,7 +246,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
     setCurrentEvent(null);
     eventForm.reset();
-  }, [currentEvent, firestore, user, tripId, toast, selectedDayId, eventForm, eventsRef]);
+  }, [currentEvent, firestore, user, tripId, selectedDayId, toast, eventForm]);
 
   // Reset selected day if days change
   useEffect(() => {
@@ -1144,6 +1162,15 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                               <FormMessage />
                           </FormItem>
                       )}/>
+                      <FormField control={eventForm.control} name="notes" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Commentaires</FormLabel>
+                              <FormControl>
+                                <Textarea placeholder="Ajoutez vos notes personnelles ici..." {...field} className="resize-y" />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}/>
                       <DialogFooter>
                           <Button type="button" variant="ghost" onClick={() => setIsEventFormOpen(false)}>Annuler</Button>
                           <Button type="submit" disabled={eventForm.formState.isSubmitting}>
@@ -1157,5 +1184,3 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    

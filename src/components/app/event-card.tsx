@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -30,6 +31,7 @@ export interface Event {
   locationName?: string;
   isAiEnriched: boolean;
   description?: string;
+  notes?: string;
   practicalInfo?: string; // Stored as a JSON string
   lat?: number;
   lng?: number;
@@ -200,6 +202,20 @@ const EventCardComponent = (props: EventCardProps) => {
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
                   <p className="text-slate-300 text-sm leading-relaxed">{event.description}</p>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
+          {event.notes && (
+            <Collapsible className="pl-6 pt-2" defaultOpen>
+              <CollapsibleTrigger asChild>
+                  <button className="text-sm text-slate-400 hover:text-white flex items-center gap-1 data-[state=open]:text-white">
+                      <FileText className="h-4 w-4" /> Vos notes
+                      <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                  </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{event.notes}</p>
               </CollapsibleContent>
             </Collapsible>
           )}
