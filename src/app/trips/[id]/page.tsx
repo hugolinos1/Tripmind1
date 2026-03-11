@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -802,7 +801,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             </TabsList>
           </div>
 
-          <TabsContent value="itinerary" className="flex-grow flex flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1 lg:overflow-hidden bg-slate-900/50">
+          <TabsContent value="itinerary" className="flex-grow flex flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1 bg-slate-900/50">
             {days && days.length > 0 ? (
               <>
                 {/* Day Itinerary */}
@@ -963,7 +962,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         (endLocation || selectedDay?.endLat) && (
                                             <TransportSuggestionCard 
                                                 startEvent={event}
-                                                endEvent={{ title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng }}
+                                                endEvent={{ id: 'end-of-day', title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng, type: 'activity', isAiEnriched: false, orderIndex: -1 }}
                                                 savedSuggestions={event.transportSuggestions ? JSON.parse(event.transportSuggestions) : null}
                                                 onGenerate={() => handleGenerateTransportSuggestions(event, { id: 'end-of-day', title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng, type: 'activity', isAiEnriched: false, orderIndex: -1 })}
                                             />
