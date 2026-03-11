@@ -193,19 +193,35 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
 const transportPropsAreEqual = (prevProps: TransportSuggestionCardProps, nextProps: TransportSuggestionCardProps) => {
     const p = prevProps;
     const n = nextProps;
-  
-    // Compare the data that drives the component's state and rendering
-    if (
-      p.savedSuggestionsJSON !== n.savedSuggestionsJSON ||
-      p.startEvent?.id !== n.startEvent?.id ||
-      p.endEvent?.id !== n.endEvent?.id ||
-      p.startEvent?.locationName !== n.startEvent?.locationName ||
-      p.endEvent?.locationName !== n.endEvent?.locationName
-    ) {
-      return false;
+
+    // Fast check for JSON string. If this changed, content definitely changed.
+    if (p.savedSuggestionsJSON !== n.savedSuggestionsJSON) {
+        return false;
     }
-  
+
+    // Check start event object content
+    if (p.startEvent?.id !== n.startEvent?.id ||
+        p.startEvent?.title !== n.startEvent?.title ||
+        p.startEvent?.locationName !== n.startEvent?.locationName ||
+        p.startEvent?.lat !== n.startEvent?.lat ||
+        p.startEvent?.lng !== n.startEvent?.lng
+    ) {
+        return false;
+    }
+    
+    // Check end event object content
+    if (n.endEvent?.id !== n.endEvent?.id ||
+        p.endEvent?.title !== n.endEvent?.title ||
+        p.endEvent?.locationName !== n.endEvent?.locationName ||
+        p.endEvent?.lat !== n.endEvent?.lat ||
+        p.endEvent?.lng !== n.endEvent?.lng
+    ) {
+        return false;
+    }
+    
+    // The onGenerate function should be stable via useCallback, so we don't check it.
+    // If we reach here, the props are semantically equal.
     return true;
-  };
+};
 
 export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent, transportPropsAreEqual);

@@ -719,6 +719,24 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     }
   }, [user, firestore, selectedDayId, tripId, toast]);
 
+  const startOfDayEvent = useMemo(() => ({
+      title: 'Lieu de départ',
+      locationName: startLocation,
+      lat: selectedDay?.startLat,
+      lng: selectedDay?.startLng,
+  }), [startLocation, selectedDay?.startLat, selectedDay?.startLng]);
+
+  const endOfDayEvent = useMemo(() => ({
+      id: 'end-of-day',
+      title: "Lieu d'arrivée",
+      locationName: endLocation,
+      lat: selectedDay?.endLat,
+      lng: selectedDay?.endLng,
+      type: 'activity' as const,
+      isAiEnriched: false,
+      orderIndex: -1,
+  }), [endLocation, selectedDay?.endLat, selectedDay?.endLng]);
+
 
   const isLoading = isTripLoading || isDaysLoading;
 
@@ -945,8 +963,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                  <React.Fragment key={event.id}>
                                     {index === 0 && (startLocation || selectedDay?.startLat) && (
                                         <TransportSuggestionCard 
-                                            startEvent={{ title: 'Lieu de départ', locationName: startLocation, lat: selectedDay?.startLat, lng: selectedDay?.startLng }}
-                                            endEvent={event}
+                                            startEvent={startOfDayEvent}
+                                            endEvent={dayEvents[0]}
                                             savedSuggestionsJSON={null}
                                             onGenerate={handleGenerateTransportSuggestions}
                                         />
@@ -974,7 +992,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         (endLocation || selectedDay?.endLat) && (
                                             <TransportSuggestionCard 
                                                 startEvent={event}
-                                                endEvent={{ id: 'end-of-day', title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng, type: 'activity', isAiEnriched: false, orderIndex: -1 }}
+                                                endEvent={endOfDayEvent}
                                                 savedSuggestionsJSON={event.transportSuggestions}
                                                 onGenerate={handleGenerateTransportSuggestions}
                                             />
@@ -1107,5 +1125,6 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
 
 

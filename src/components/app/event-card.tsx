@@ -255,39 +255,50 @@ const EventCardComponent = (props: EventCardProps) => {
 };
 
 const eventPropsAreEqual = (prevProps: EventCardProps, nextProps: EventCardProps) => {
-    const p = prevProps;
-    const n = nextProps;
-  
-    // Quick primitive checks
+    // Quick primitive checks are cheap and can exit early.
     if (
-      p.isFirst !== n.isFirst ||
-      p.isLast !== n.isLast ||
-      p.isGeocoding !== n.isGeocoding
+      prevProps.isFirst !== nextProps.isFirst ||
+      prevProps.isLast !== nextProps.isLast ||
+      prevProps.isGeocoding !== nextProps.isGeocoding
     ) {
       return false;
     }
   
-    // Check if the event object itself has meaningfully changed.
-    // We compare stringified complex data and primitive keys that affect rendering.
+    const prevEvent = prevProps.event;
+    const nextEvent = nextProps.event;
+
+    // Check every single property of the event object that affects rendering.
     if (
-      p.event.id !== n.event.id ||
-      p.event.title !== n.event.title ||
-      p.event.description !== n.event.description ||
-      p.event.startTime !== n.event.startTime ||
-      p.event.durationMinutes !== n.event.durationMinutes ||
-      p.event.locationName !== n.event.locationName ||
-      p.event.isAiEnriched !== n.event.isAiEnriched ||
-      p.event.practicalInfo !== n.event.practicalInfo || // This is a stringified JSON
-      p.event.transportSuggestions !== n.event.transportSuggestions || // This is a stringified JSON
-      p.event.lat !== n.event.lat ||
-      p.event.lng !== n.event.lng ||
-      (p.event.attachments?.length || 0) !== (n.event.attachments?.length || 0)
+      prevEvent.id !== nextEvent.id ||
+      prevEvent.title !== nextEvent.title ||
+      prevEvent.type !== nextEvent.type ||
+      prevEvent.startTime !== nextEvent.startTime ||
+      prevEvent.durationMinutes !== nextEvent.durationMinutes ||
+      prevEvent.locationName !== nextEvent.locationName ||
+      prevEvent.isAiEnriched !== nextEvent.isAiEnriched ||
+      prevEvent.description !== nextEvent.description ||
+      prevEvent.practicalInfo !== nextEvent.practicalInfo || // This is a JSON string, direct comparison is fine.
+      prevEvent.transportSuggestions !== nextEvent.transportSuggestions || // Also a JSON string.
+      prevEvent.lat !== nextEvent.lat ||
+      prevEvent.lng !== nextEvent.lng ||
+      (prevEvent.attachments?.length || 0) !== (nextEvent.attachments?.length || 0)
     ) {
       return false;
     }
+
+    // A deeper check for attachments if length is the same but > 0
+    if (prevEvent.attachments && nextEvent.attachments && prevEvent.attachments.length > 0) {
+        for(let i = 0; i < prevEvent.attachments.length; i++) {
+            if (prevEvent.attachments[i].id !== nextEvent.attachments[i].id || prevEvent.attachments[i].filename !== nextEvent.attachments[i].filename) {
+                return false;
+            }
+        }
+    }
+    
+    // Functions are assumed to be stable via useCallback, so we don't compare them.
   
-    // If we reach here, we assume the props are equal enough to skip a re-render.
+    // If all checks pass, the props are considered equal.
     return true;
-  };
+};
 
 export default React.memo(EventCardComponent, eventPropsAreEqual);
