@@ -39,7 +39,7 @@ export interface Event {
   orderIndex: number;
 }
 
-interface EventCardProps {
+export interface EventCardProps {
     event: Event;
     onEnrich: (eventId: string) => Promise<void>;
     onAddAttachment: (eventId: string, attachment: Attachment) => void;
@@ -255,7 +255,7 @@ const EventCardComponent = (props: EventCardProps) => {
 };
 
 const eventPropsAreEqual = (prevProps: EventCardProps, nextProps: EventCardProps) => {
-    // Quick primitive checks are cheap and can exit early.
+    // Quick primitive checks
     if (
       prevProps.isFirst !== nextProps.isFirst ||
       prevProps.isLast !== nextProps.isLast ||
@@ -264,41 +264,8 @@ const eventPropsAreEqual = (prevProps: EventCardProps, nextProps: EventCardProps
       return false;
     }
   
-    const prevEvent = prevProps.event;
-    const nextEvent = nextProps.event;
-
-    // Check every single property of the event object that affects rendering.
-    if (
-      prevEvent.id !== nextEvent.id ||
-      prevEvent.title !== nextEvent.title ||
-      prevEvent.type !== nextEvent.type ||
-      prevEvent.startTime !== nextEvent.startTime ||
-      prevEvent.durationMinutes !== nextEvent.durationMinutes ||
-      prevEvent.locationName !== nextEvent.locationName ||
-      prevEvent.isAiEnriched !== nextEvent.isAiEnriched ||
-      prevEvent.description !== nextEvent.description ||
-      prevEvent.practicalInfo !== nextEvent.practicalInfo || // This is a JSON string, direct comparison is fine.
-      prevEvent.transportSuggestions !== nextEvent.transportSuggestions || // Also a JSON string.
-      prevEvent.lat !== nextEvent.lat ||
-      prevEvent.lng !== nextEvent.lng ||
-      (prevEvent.attachments?.length || 0) !== (nextEvent.attachments?.length || 0)
-    ) {
-      return false;
-    }
-
-    // A deeper check for attachments if length is the same but > 0
-    if (prevEvent.attachments && nextEvent.attachments && prevEvent.attachments.length > 0) {
-        for(let i = 0; i < prevEvent.attachments.length; i++) {
-            if (prevEvent.attachments[i].id !== nextEvent.attachments[i].id || prevEvent.attachments[i].filename !== nextEvent.attachments[i].filename) {
-                return false;
-            }
-        }
-    }
-    
-    // Functions are assumed to be stable via useCallback, so we don't compare them.
-  
-    // If all checks pass, the props are considered equal.
-    return true;
+    // Deep comparison for the event object
+    return JSON.stringify(prevProps.event) === JSON.stringify(nextProps.event);
 };
 
 export default React.memo(EventCardComponent, eventPropsAreEqual);

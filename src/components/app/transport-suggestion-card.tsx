@@ -26,7 +26,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 type Suggestion = TransportSuggestionOutput['suggestions'][0];
 
-interface TransportSuggestionCardProps {
+export interface TransportSuggestionCardProps {
   startEvent: { id?: string } & Omit<TransportSuggestionInput['startEvent'], 'id'>;
   endEvent: TransportSuggestionInput['endEvent'];
   savedSuggestionsJSON: string | null | undefined;
@@ -191,37 +191,14 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
 }
 
 const transportPropsAreEqual = (prevProps: TransportSuggestionCardProps, nextProps: TransportSuggestionCardProps) => {
-    const p = prevProps;
-    const n = nextProps;
-
     // Fast check for JSON string. If this changed, content definitely changed.
-    if (p.savedSuggestionsJSON !== n.savedSuggestionsJSON) {
-        return false;
-    }
-
-    // Check start event object content
-    if (p.startEvent?.id !== n.startEvent?.id ||
-        p.startEvent?.title !== n.startEvent?.title ||
-        p.startEvent?.locationName !== n.startEvent?.locationName ||
-        p.startEvent?.lat !== n.startEvent?.lat ||
-        p.startEvent?.lng !== n.startEvent?.lng
-    ) {
+    if (prevProps.savedSuggestionsJSON !== nextProps.savedSuggestionsJSON) {
         return false;
     }
     
-    // Check end event object content
-    if (n.endEvent?.id !== n.endEvent?.id ||
-        p.endEvent?.title !== n.endEvent?.title ||
-        p.endEvent?.locationName !== n.endEvent?.locationName ||
-        p.endEvent?.lat !== n.endEvent?.lat ||
-        p.endEvent?.lng !== n.endEvent?.lng
-    ) {
-        return false;
-    }
-    
-    // The onGenerate function should be stable via useCallback, so we don't check it.
-    // If we reach here, the props are semantically equal.
-    return true;
+    // Deep compare start and end events
+    return JSON.stringify(prevProps.startEvent) === JSON.stringify(nextProps.startEvent) &&
+           JSON.stringify(prevProps.endEvent) === JSON.stringify(nextProps.endEvent);
 };
 
 export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent, transportPropsAreEqual);
