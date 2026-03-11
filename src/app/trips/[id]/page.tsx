@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -739,7 +740,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     <div className="flex flex-col min-h-screen bg-bg-dark">
       <AppHeader />
 
-      <div className="flex-grow flex flex-col lg:overflow-hidden">
+      <div className="flex-grow flex flex-col">
         {/* Trip Header */}
         <header className="container mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
           <div className="flex items-center gap-4">
@@ -789,7 +790,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </div>
         </header>
 
-        <Tabs defaultValue="itinerary" className="flex-grow flex flex-col lg:overflow-hidden">
+        <Tabs defaultValue="itinerary" className="flex-grow flex flex-col">
           <div className="container mx-auto px-6 border-b border-slate-800">
             <TabsList className="p-0 bg-transparent -mb-px">
               <TabsTrigger value="itinerary" className="text-base rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent">
@@ -805,7 +806,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             {days && days.length > 0 ? (
               <>
                 {/* Day Itinerary */}
-                <div className="flex flex-col lg:overflow-y-auto">
+                <div className="flex flex-col lg:overflow-y-auto relative z-10">
                     {/* Day Selector */}
                     <div className="w-full border-b border-slate-800 sticky top-0 bg-bg-dark/80 backdrop-blur-sm z-10">
                         <div className="container mx-auto px-6">
@@ -988,7 +989,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                 </div>
 
                 {/* Map View */}
-                <div className="bg-bg-dark h-[50vh] min-h-[400px] lg:h-auto lg:min-h-0 lg:overflow-y-auto">
+                <div className="bg-bg-dark h-[50vh] min-h-[400px] lg:h-auto lg:min-h-0 lg:overflow-y-auto relative z-0">
                     <MapView events={dayEvents} day={selectedDay} />
                 </div>
               </>
