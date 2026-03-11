@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 import { useState, useRef } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { useWhyDidYouUpdate } from '@/hooks/use-why-did-you-update';
 
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
 
@@ -61,6 +62,7 @@ const eventTypeConfig = {
 };
 
 const EventCardComponent = (props: EventCardProps) => {
+  useWhyDidYouUpdate('EventCard', props);
   const { event, onEnrich, onAddAttachment, onMove, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding } = props;
 
   const [isEnriching, setIsEnriching] = useState(false);
@@ -254,56 +256,4 @@ const EventCardComponent = (props: EventCardProps) => {
   );
 };
 
-function deepEqual(a: any, b: any): boolean {
-    if (a === b) return true;
-
-    if (a && b && typeof a === 'object' && typeof b === 'object') {
-        if (a.constructor !== b.constructor) return false;
-
-        let length, i;
-        if (Array.isArray(a)) {
-            length = a.length;
-            if (length !== b.length) return false;
-            for (i = length; i-- > 0;)
-                if (!deepEqual(a[i], b[i])) return false;
-            return true;
-        }
-
-        if (a.constructor === RegExp) return a.source === b.source && a.flags === b.flags;
-        if (a.valueOf !== Object.prototype.valueOf) return a.valueOf() === b.valueOf();
-        if (a.toString !== Object.prototype.toString) return a.toString() === b.toString();
-
-        const keys = Object.keys(a);
-        length = keys.length;
-        if (length !== Object.keys(b).length) return false;
-
-        for (i = length; i-- > 0;) {
-            const key = keys[i];
-            if (!Object.prototype.hasOwnProperty.call(b, key) || !deepEqual(a[key], b[key])) return false;
-        }
-
-        return true;
-    }
-
-    return a !== a && b !== b;
-}
-
-const eventPropsAreEqual = (prevProps: EventCardProps, nextProps: EventCardProps) => {
-    if (
-      prevProps.isFirst !== nextProps.isFirst ||
-      prevProps.isLast !== nextProps.isLast ||
-      prevProps.isGeocoding !== nextProps.isGeocoding ||
-      prevProps.onEnrich !== nextProps.onEnrich ||
-      prevProps.onAddAttachment !== nextProps.onAddAttachment ||
-      prevProps.onMove !== nextProps.onMove ||
-      prevProps.onGeocode !== nextProps.onGeocode ||
-      prevProps.onDelete !== nextProps.onDelete ||
-      prevProps.onEdit !== nextProps.onEdit
-    ) {
-      return false;
-    }
-  
-    return deepEqual(prevProps.event, nextProps.event);
-};
-
-export default React.memo(EventCardComponent, eventPropsAreEqual);
+export default EventCardComponent;

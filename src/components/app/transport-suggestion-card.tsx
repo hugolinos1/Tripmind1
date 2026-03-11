@@ -23,6 +23,7 @@ import type { TransportSuggestionOutput, TransportSuggestionInput } from '@/ai/t
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useWhyDidYouUpdate } from '@/hooks/use-why-did-you-update';
 
 type Suggestion = TransportSuggestionOutput['suggestions'][0];
 
@@ -42,41 +43,8 @@ const modeIcons: Record<string, React.ElementType> = {
   other: HelpCircle,
 };
 
-function deepEqual(a: any, b: any): boolean {
-    if (a === b) return true;
-
-    if (a && b && typeof a === 'object' && typeof b === 'object') {
-        if (a.constructor !== b.constructor) return false;
-
-        let length, i;
-        if (Array.isArray(a)) {
-            length = a.length;
-            if (length !== b.length) return false;
-            for (i = length; i-- > 0;)
-                if (!deepEqual(a[i], b[i])) return false;
-            return true;
-        }
-
-        if (a.constructor === RegExp) return a.source === b.source && a.flags === b.flags;
-        if (a.valueOf !== Object.prototype.valueOf) return a.valueOf() === b.valueOf();
-        if (a.toString !== Object.prototype.toString) return a.toString() === b.toString();
-
-        const keys = Object.keys(a);
-        length = keys.length;
-        if (length !== Object.keys(b).length) return false;
-
-        for (i = length; i-- > 0;) {
-            const key = keys[i];
-            if (!Object.prototype.hasOwnProperty.call(b, key) || !deepEqual(a[key], b[key])) return false;
-        }
-
-        return true;
-    }
-
-    return a !== a && b !== b;
-}
-
 const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) => {
+  useWhyDidYouUpdate('TransportSuggestionCard', props);
   const { startEvent, endEvent, savedSuggestionsJSON, onGenerate } = props;
 
   const [isLoading, setIsLoading] = useState(false);
@@ -224,16 +192,4 @@ const TransportSuggestionCardComponent = (props: TransportSuggestionCardProps) =
   return null;
 }
 
-const transportPropsAreEqual = (prevProps: TransportSuggestionCardProps, nextProps: TransportSuggestionCardProps) => {
-    if (
-        prevProps.savedSuggestionsJSON !== nextProps.savedSuggestionsJSON ||
-        prevProps.onGenerate !== nextProps.onGenerate
-    ) {
-        return false;
-    }
-    
-    return deepEqual(prevProps.startEvent, nextProps.startEvent) &&
-           deepEqual(prevProps.endEvent, nextProps.endEvent);
-};
-
-export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent, transportPropsAreEqual);
+export const TransportSuggestionCard = TransportSuggestionCardComponent;
