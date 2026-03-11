@@ -108,12 +108,12 @@ const CompletedEventSchema = z.object({
     id: z.string().optional(),
     type: z.enum(['visit', 'meal', 'transport', 'accommodation', 'activity']),
     title: z.string(),
-    description: z.string().optional(),
-    startTime: z.string().optional(), // "HH:mm"
-    durationMinutes: z.number().optional(),
-    locationName: z.string().optional(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
+    description: z.string().optional().nullable(),
+    startTime: z.string().optional().nullable(), // "HH:mm"
+    durationMinutes: z.coerce.number().optional().nullable(),
+    locationName: z.string().optional().nullable(),
+    lat: z.coerce.number().optional().nullable(),
+    lng: z.coerce.number().optional().nullable(),
 });
 
 export const CompleteDayItineraryInputSchema = z.object({
