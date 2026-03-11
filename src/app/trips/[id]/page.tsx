@@ -776,7 +776,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
   const endOfDayEvent = useMemo(() => ({
       id: 'end-of-day',
-      title: "Lieu d'arrivée",
+      title: "Lieu de retour",
       locationName: endLocation,
       lat: selectedDay?.endLat,
       lng: selectedDay?.endLng,
@@ -970,7 +970,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                     </div>
                                 </div>
                                 <div>
-                                    <Label htmlFor="end-location" className="text-xs font-semibold text-slate-400">Lieu d'arrivée</Label>
+                                    <Label htmlFor="end-location" className="text-xs font-semibold text-slate-400">Lieu de retour</Label>
                                     <div className="relative flex items-center mt-1">
                                         <Input
                                             id="end-location"
@@ -991,7 +991,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                             )}
                                             onClick={() => handleGeocodeDayLocation('end')}
                                             disabled={isGeocoding === 'end' || !endLocation}
-                                            aria-label="Géolocaliser le lieu d'arrivée"
+                                            aria-label="Géolocaliser le lieu de retour"
                                         >
                                             {isGeocoding === 'end' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
                                         </Button>

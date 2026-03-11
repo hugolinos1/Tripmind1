@@ -1,3 +1,4 @@
+
 'use client';
 
 import 'leaflet/dist/leaflet.css';
@@ -142,9 +143,9 @@ const MapView = ({ events, day }: MapViewProps) => {
           <Marker
             key="end-marker"
             position={[day.endLat, day.endLng]}
-            icon={getMarkerIcon(eventTypeColors.end, "A")}
+            icon={getMarkerIcon(eventTypeColors.end, "R")}
           >
-            <Popup>{day.endLocationName || "Lieu d'arrivée"}</Popup>
+            <Popup>{day.endLocationName || "Lieu de retour"}</Popup>
           </Marker>
         )}
         <MapBoundsUpdater bounds={bounds} />
