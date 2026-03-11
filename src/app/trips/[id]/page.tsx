@@ -213,7 +213,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
 
     setCurrentEvent(null);
     eventForm.reset();
-  }, [currentEvent, eventForm.reset, firestore, user, tripId, toast, selectedDayId]);
+  }, [currentEvent, eventForm, firestore, user, tripId, toast, selectedDayId]);
 
   // Reset selected day if days change
   useEffect(() => {
