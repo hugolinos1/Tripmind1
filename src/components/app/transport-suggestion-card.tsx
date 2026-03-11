@@ -33,27 +33,45 @@ interface TransportSuggestionCardProps {
   onGenerate: () => Promise<Suggestion[] | undefined>;
 }
 
+const modeIcons: Record<string, React.ElementType> = {
+  walking: Walk,
+  public_transport: Bus,
+  taxi: Car,
+  bike_sharing: Bike,
+  plane: Plane,
+  other: HelpCircle,
+};
+
 export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestionsJSON, onGenerate }: TransportSuggestionCardProps) {
-  const savedSuggestions = useMemo(() => {
-    if (!savedSuggestionsJSON) return null;
-    try {
-      return JSON.parse(savedSuggestionsJSON) as Suggestion[];
-    } catch(e) {
-      console.error("Failed to parse transport suggestions:", e);
-      return null;
-    }
-  }, [savedSuggestionsJSON]);
-  
-  const [suggestions, setSuggestions] = useState<Suggestion[] | null>(savedSuggestions);
+  const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
-    setSuggestions(savedSuggestions);
-    if (savedSuggestions) {
-      setError(null);
+    setError(null);
+    if (!savedSuggestionsJSON) {
+        setSuggestions(null);
+        return;
     }
-  }, [savedSuggestions]);
+    try {
+        const newSuggestions = JSON.parse(savedSuggestionsJSON);
+        
+        setSuggestions(currentSuggestions => {
+            // Only update state if the content has actually changed to prevent re-render loops.
+            if (JSON.stringify(newSuggestions) !== JSON.stringify(currentSuggestions)) {
+                return newSuggestions;
+            }
+            return currentSuggestions;
+        });
+
+    } catch (e) {
+        console.error("Failed to parse transport suggestions:", e);
+        setError("Impossible de charger les suggestions.");
+        setSuggestions(null);
+    }
+  }, [savedSuggestionsJSON]);
+
 
   const canGenerate = (startEvent.lat && startEvent.lng && endEvent.lat && endEvent.lng) || (startEvent.locationName && endEvent.locationName);
 
@@ -70,6 +88,7 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
       const result = await onGenerate();
       if (result) {
         setSuggestions(result);
+        setIsExpanded(true); // Automatically expand when new suggestions are generated
       }
     } catch (e: any) {
       setError(e.message || 'Une erreur est survenue.');
@@ -117,7 +136,7 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
 
   if (suggestions && suggestions.length > 0) {
     return (
-        <Collapsible className="my-2 group/collapsible" defaultOpen={false}>
+        <Collapsible className="my-2 group/collapsible" open={isExpanded} onOpenChange={setIsExpanded}>
             <div className="flex justify-center items-center transition-all duration-300 ease-in-out">
                 <div className="h-px bg-slate-700 flex-grow"></div>
                 <CollapsibleTrigger asChild>
