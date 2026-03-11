@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -28,20 +29,21 @@ type Suggestion = TransportSuggestionOutput['suggestions'][0];
 interface TransportSuggestionCardProps {
   startEvent: { id?: string } & Omit<TransportSuggestionInput['startEvent'], 'id'>;
   endEvent: TransportSuggestionInput['endEvent'];
-  savedSuggestions: Suggestion[] | null;
+  savedSuggestionsJSON: string | null | undefined;
   onGenerate: () => Promise<Suggestion[] | undefined>;
 }
 
-const modeIcons: Record<Suggestion['mode'] | 'other', React.ElementType> = {
-  walking: Walk,
-  public_transport: Bus,
-  taxi: Car,
-  bike_sharing: Bike,
-  plane: Plane,
-  other: HelpCircle,
-};
-
-export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions, onGenerate }: TransportSuggestionCardProps) {
+export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestionsJSON, onGenerate }: TransportSuggestionCardProps) {
+  const savedSuggestions = useMemo(() => {
+    if (!savedSuggestionsJSON) return null;
+    try {
+      return JSON.parse(savedSuggestionsJSON) as Suggestion[];
+    } catch(e) {
+      console.error("Failed to parse transport suggestions:", e);
+      return null;
+    }
+  }, [savedSuggestionsJSON]);
+  
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(savedSuggestions);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +117,7 @@ export function TransportSuggestionCard({ startEvent, endEvent, savedSuggestions
 
   if (suggestions && suggestions.length > 0) {
     return (
-        <Collapsible className="my-2 group/collapsible">
+        <Collapsible className="my-2 group/collapsible" defaultOpen={false}>
             <div className="flex justify-center items-center transition-all duration-300 ease-in-out">
                 <div className="h-px bg-slate-700 flex-grow"></div>
                 <CollapsibleTrigger asChild>

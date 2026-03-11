@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import React from 'react';
 import { useForm } from 'react-hook-form';
@@ -721,7 +721,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             <div className="container mx-auto px-6 py-4 border-b border-slate-800">
                  <Skeleton className="h-10 w-1/4" />
             </div>
-            <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800 overflow-hidden">
+            <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-800">
                 <div className="p-6 space-y-4">
                     <Skeleton className="h-8 w-1/2" />
                     <Skeleton className="h-48 w-full" />
@@ -935,7 +935,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         <TransportSuggestionCard 
                                             startEvent={{ title: 'Lieu de départ', locationName: startLocation, lat: selectedDay?.startLat, lng: selectedDay?.startLng }}
                                             endEvent={event}
-                                            savedSuggestions={null}
+                                            savedSuggestionsJSON={null}
                                             onGenerate={async () => undefined}
                                         />
                                     )}
@@ -956,7 +956,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                         <TransportSuggestionCard 
                                             startEvent={event}
                                             endEvent={dayEvents[index + 1]}
-                                            savedSuggestions={event.transportSuggestions ? JSON.parse(event.transportSuggestions) : null}
+                                            savedSuggestionsJSON={event.transportSuggestions}
                                             onGenerate={() => handleGenerateTransportSuggestions(event, dayEvents[index + 1])}
                                         />
                                     ) : (
@@ -964,7 +964,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                             <TransportSuggestionCard 
                                                 startEvent={event}
                                                 endEvent={{ id: 'end-of-day', title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng, type: 'activity', isAiEnriched: false, orderIndex: -1 }}
-                                                savedSuggestions={event.transportSuggestions ? JSON.parse(event.transportSuggestions) : null}
+                                                savedSuggestionsJSON={event.transportSuggestions}
                                                 onGenerate={() => handleGenerateTransportSuggestions(event, { id: 'end-of-day', title: "Lieu d'arrivée", locationName: endLocation, lat: selectedDay?.endLat, lng: selectedDay?.endLng, type: 'activity', isAiEnriched: false, orderIndex: -1 })}
                                             />
                                         )
