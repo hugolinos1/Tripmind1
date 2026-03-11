@@ -11,7 +11,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 import { useState, useRef } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { useWhyDidYouUpdate } from '@/hooks/use-why-did-you-update';
 
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
 
@@ -67,7 +66,6 @@ const eventTypeConfig = {
 };
 
 const EventCard = (props: EventCardProps) => {
-  useWhyDidYouUpdate('EventCard', props);
   const { event, onEnrich, onAddAttachment, onMove, onGeocode, onDelete, onEdit, isFirst, isLast, isGeocoding } = props;
 
   const [isEnriching, setIsEnriching] = useState(false);

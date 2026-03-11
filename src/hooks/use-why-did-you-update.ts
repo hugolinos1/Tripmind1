@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -13,7 +14,7 @@ export function useWhyDidYouUpdate(name: string, props: Record<string, any>) {
   const previousProps = useRef<Record<string, any>>();
 
   useEffect(() => {
-    if (previousProps.current) {
+    if (process.env.NODE_ENV === 'development' && previousProps.current) {
       // Obtenir toutes les clés des props précédentes et actuelles
       const allKeys = Object.keys({ ...previousProps.current, ...props });
       // Utiliser cet objet pour suivre les props qui ont changé
