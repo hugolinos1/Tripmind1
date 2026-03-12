@@ -152,5 +152,30 @@ service cloud.firestore {
         }
       }
     }
+
+    /**
+     * @description Publicly readable copies of shared trips.
+     * @path /publicTrips/{tripId}
+     * @allow (read) Anyone can read these documents.
+     * @allow (write) Only the original owner of the trip can create or update the public copy.
+     */
+    match /publicTrips/{tripId} {
+      allow get: if true;
+      allow list: if true; // Allow listing for potential future search features
+      allow create, update: if request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth.uid == resource.data.userId;
+
+      match /days/{dayId} {
+        allow get: if true;
+        allow list: if true;
+        allow write: if get(/databases/$(database)/documents/publicTrips/$(tripId)).data.userId == request.auth.uid;
+      }
+
+      match /days/{dayId}/events/{eventId} {
+        allow get: if true;
+        allow list: if true;
+        allow write: if get(/databases/$(database)/documents/publicTrips/$(tripId)).data.userId == request.auth.uid;
+      }
+    }
   }
 }

@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit, Loader2 } from 'lucide-react';
+import { ArrowLeft, Bot, Calendar, Info, MapPin, RefreshCw, Share2, PlusCircle, Edit, Loader2, Copy } from 'lucide-react';
 import Link from 'next/link';
 import EventCard from '@/components/app/event-card';
 import type { Event as EventType, Attachment } from '@/components/app/event-card';
@@ -35,7 +35,7 @@ import { geocodeLocation } from '@/ai/flows/ai-geocode-location';
 import { getTransportSuggestions } from '@/ai/flows/ai-get-transport-suggestions';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, serverTimestamp, writeBatch, deleteDoc } from 'firebase/firestore';
+import { doc, collection, query, orderBy, serverTimestamp, writeBatch, deleteDoc, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { v4 as uuidv4 } from 'uuid';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -68,11 +68,11 @@ interface Day {
 
 const eventFormSchema = z.object({
     title: z.string().min(3, { message: 'Le titre doit contenir au moins 3 caractères.' }),
+    notes: z.string().optional(),
     type: z.enum(['activity', 'visit', 'meal', 'transport', 'accommodation'], { required_error: 'Veuillez sélectionner un type.'}),
     startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Format HH:mm invalide.' }).optional().or(z.literal('')),
     durationMinutes: z.coerce.number().int().positive().optional(),
     locationName: z.string().optional(),
-    notes: z.string().optional(),
   });
   
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -94,6 +94,9 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const [startLocation, setStartLocation] = useState('');
   const [endLocation, setEndLocation] = useState('');
   const [isGeocoding, setIsGeocoding] = useState<null | 'start' | 'end' | string>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareableLink, setShareableLink] = useState('');
 
   // --- Data Fetching from Firestore ---
   const tripRef = useMemoFirebase(() => {
@@ -142,27 +145,26 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
   const handleOpenEventForm = useCallback((event: EventType | null) => {
     setCurrentEvent(event);
     setIsEventFormOpen(true);
-    // Defer form reset to prevent blocking UI thread while dialog opens
     setTimeout(() => {
-      if (event) {
-        eventForm.reset({
-          title: event.title || '',
-          type: event.type || 'activity',
-          startTime: event.startTime || '',
-          durationMinutes: event.durationMinutes || undefined,
-          locationName: event.locationName || '',
-          notes: event.notes || '',
-        });
-      } else {
-        eventForm.reset({
-          title: '',
-          type: 'activity',
-          startTime: '',
-          durationMinutes: undefined,
-          locationName: '',
-          notes: '',
-        });
-      }
+        if (event) {
+            eventForm.reset({
+                title: event.title || '',
+                notes: event.notes || '',
+                type: event.type || 'activity',
+                startTime: event.startTime || '',
+                durationMinutes: event.durationMinutes || undefined,
+                locationName: event.locationName || '',
+            });
+        } else {
+            eventForm.reset({
+                title: '',
+                notes: '',
+                type: 'activity',
+                startTime: '',
+                durationMinutes: undefined,
+                locationName: '',
+            });
+        }
     }, 0);
   }, [eventForm]);
 
@@ -767,6 +769,59 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     }
   }, [user, firestore, selectedDayId, tripId, toast]);
 
+  const handleShare = async () => {
+    if (!user || !firestore || !tripData || !days) {
+      toast({ variant: "destructive", title: "Erreur", description: "Les données du voyage ne sont pas entièrement chargées." });
+      return;
+    }
+
+    setIsSharing(true);
+    toast({ title: 'Création du lien de partage...' });
+
+    try {
+      const batch = writeBatch(firestore);
+      let token = tripData.shareToken || uuidv4();
+
+      // Update original trip with shareToken if it's new
+      if (!tripData.shareToken) {
+        const originalTripRef = doc(firestore, 'users', user.uid, 'trips', tripId);
+        batch.update(originalTripRef, { shareToken: token });
+      }
+
+      // Create public copy of trip data
+      const publicTripRef = doc(firestore, 'publicTrips', tripId);
+      const publicTripData = { ...tripData, userId: user.uid };
+      batch.set(publicTripRef, publicTripData);
+
+      // Create public copies of all days and their events
+      for (const day of days) {
+        const publicDayRef = doc(publicTripRef, 'days', day.id);
+        batch.set(publicDayRef, day);
+
+        const eventsCollectionRef = collection(firestore, 'users', user.uid, 'trips', tripId, 'days', day.id, 'events');
+        const eventsSnapshot = await getDocs(eventsCollectionRef);
+        
+        eventsSnapshot.docs.forEach(eventDoc => {
+            const publicEventRef = doc(publicDayRef, 'events', eventDoc.id);
+            const { notes, ...publicEventData } = eventDoc.data(); // Exclude private notes
+            batch.set(publicEventRef, publicEventData);
+        });
+      }
+
+      await batch.commit();
+
+      const generatedLink = `${window.location.origin}/share/${tripId}`;
+      setShareableLink(generatedLink);
+      setShareDialogOpen(true);
+
+    } catch (error) {
+      console.error("Sharing failed:", error);
+      toast({ variant: 'destructive', title: 'Erreur de partage', description: "Impossible de créer le lien." });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   const startOfDayEvent = useMemo(() => ({
       title: 'Lieu de départ',
       locationName: startLocation,
@@ -844,8 +899,8 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                     Modifier
                   </Link>
                 </Button>
-                <Button variant="outline">
-                  <Share2 className="mr-2 h-4 w-4" />
+                <Button variant="outline" onClick={handleShare} disabled={isSharing}>
+                  {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
                   Partager
                 </Button>
                 {(!days || days.length === 0) && (
@@ -868,7 +923,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </div>
         </header>
 
-        <Tabs defaultValue="itinerary" className="flex-grow flex flex-col">
+        <Tabs defaultValue="itinerary" className="flex-grow flex flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1">
           <div className="container mx-auto px-6 border-b border-slate-800">
             <TabsList className="p-0 bg-transparent -mb-px">
               <TabsTrigger value="itinerary" className="text-base rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent">
@@ -1180,6 +1235,36 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                   </form>
               </Form>
           </DialogContent>
+      </Dialog>
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Partager votre voyage</DialogTitle>
+                <DialogDescription>
+                    Copiez le lien ci-dessous et partagez-le. Toute personne disposant du lien pourra consulter cet itinéraire.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center space-x-2">
+                <div className="grid flex-1 gap-2">
+                    <Label htmlFor="link" className="sr-only">
+                        Lien
+                    </Label>
+                    <Input id="link" defaultValue={shareableLink} readOnly />
+                </div>
+                <Button type="submit" size="sm" className="px-3" onClick={() => {
+                    navigator.clipboard.writeText(shareableLink);
+                    toast({ title: 'Copié !', description: 'Le lien de partage a été copié.' });
+                }}>
+                    <span className="sr-only">Copier</span>
+                    <Copy className="h-4 w-4" />
+                </Button>
+            </div>
+            <DialogFooter className="sm:justify-start">
+                <Button type="button" variant="secondary" onClick={() => setShareDialogOpen(false)}>
+                    Fermer
+                </Button>
+            </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );
