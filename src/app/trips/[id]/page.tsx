@@ -923,7 +923,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
           </div>
         </header>
 
-        <Tabs defaultValue="itinerary" className="flex-grow flex flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1">
+        <Tabs defaultValue="itinerary" className="flex-grow flex flex-col">
           <div className="container mx-auto px-6 border-b border-slate-800">
             <TabsList className="p-0 bg-transparent -mb-px">
               <TabsTrigger value="itinerary" className="text-base rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent">
@@ -1156,7 +1156,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             )}
           </TabsContent>
 
-          <TabsContent value="info" className="flex-grow overflow-y-auto bg-slate-900/50 col-span-2">
+          <TabsContent value="info" className="flex-grow overflow-y-auto bg-slate-900/50">
             <TripInfo tripId={tripId} destinations={Array.isArray(tripData?.destinations) ? tripData.destinations : []} />
           </TabsContent>
         </Tabs>
