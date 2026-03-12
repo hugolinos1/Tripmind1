@@ -1,3 +1,4 @@
+
 /**
  * # Firestore Security Rules
  *
@@ -168,13 +169,13 @@ service cloud.firestore {
       match /days/{dayId} {
         allow get: if true;
         allow list: if true;
-        allow write: if get(/databases/$(database)/documents/publicTrips/$(tripId)).data.userId == request.auth.uid;
+        allow write: if request.auth.uid == request.resource.data.userId;
       }
 
       match /days/{dayId}/events/{eventId} {
         allow get: if true;
         allow list: if true;
-        allow write: if get(/databases/$(database)/documents/publicTrips/$(tripId)).data.userId == request.auth.uid;
+        allow write: if request.auth.uid == request.resource.data.userId;
       }
     }
   }

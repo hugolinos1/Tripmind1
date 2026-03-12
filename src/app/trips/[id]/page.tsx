@@ -796,14 +796,16 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
       // Create public copies of all days and their events
       for (const day of days) {
         const publicDayRef = doc(publicTripRef, 'days', day.id);
-        batch.set(publicDayRef, day);
+        const publicDayData = { ...day, userId: user.uid };
+        batch.set(publicDayRef, publicDayData);
 
         const eventsCollectionRef = collection(firestore, 'users', user.uid, 'trips', tripId, 'days', day.id, 'events');
         const eventsSnapshot = await getDocs(eventsCollectionRef);
         
         eventsSnapshot.docs.forEach(eventDoc => {
             const publicEventRef = doc(publicDayRef, 'events', eventDoc.id);
-            const { notes, ...publicEventData } = eventDoc.data(); // Exclude private notes
+            const { notes, ...eventDataWithoutNotes } = eventDoc.data(); // Exclude private notes
+            const publicEventData = { ...eventDataWithoutNotes, userId: user.uid };
             batch.set(publicEventRef, publicEventData);
         });
       }
@@ -935,225 +937,227 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
             </TabsList>
           </div>
 
-          <TabsContent value="itinerary" className="flex-grow flex flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1">
-            {days && days.length > 0 ? (
-              <>
-                {/* Day Itinerary */}
-                <div className="flex flex-col lg:overflow-y-auto relative z-10">
-                    {/* Day Selector */}
-                    <div className="w-full border-b border-slate-800 sticky top-0 bg-bg-dark/80 backdrop-blur-sm z-10">
-                        <div className="container mx-auto px-6">
-                            <div className="relative py-2">
-                                <Carousel
-                                    opts={{
-                                        align: "start",
-                                        dragFree: true,
-                                    }}
-                                    className="mx-8"
-                                >
-                                    <CarouselContent className="-ml-2">
-                                        {days.map((day, index) => {
-                                            return (
-                                                <CarouselItem key={day.id} className="basis-auto pl-2">
-                                                    <Button
-                                                        variant={selectedDayIndex === index ? 'secondary' : 'ghost'}
-                                                        className={`flex-shrink-0 ${selectedDayIndex === index ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-                                                        onClick={() => setSelectedDayIndex(index)}
-                                                    >
-                                                        Jour {day.orderIndex + 1}
-                                                    </Button>
-                                                </CarouselItem>
-                                            )
-                                        })}
-                                    </CarouselContent>
-                                    <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
-                                    <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
-                                </Carousel>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {/* Event List */}
-                    <div className="p-6">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
-                            <h2 className="text-xl font-bold font-headline capitalize">
-                                {dayDate ? format(dayDate, 'EEEE d MMMM', { locale: fr }) : ''}
-                            </h2>
-                            <Button onClick={handleCompleteDayWithAI} disabled={isGenerating !== false} size="sm">
-                                {isGenerating === 'completing' ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    En cours...
-                                </>
-                                ) : (
-                                <>
-                                    <Bot className="mr-2 h-4 w-4" />
-                                    Compléter la journée
-                                </>
-                                )}
-                            </Button>
-                        </div>
-                        
-                        <Card className="mb-6 bg-slate-800/50 border-slate-700/50">
-                            <CardContent className="p-4 space-y-4">
-                                <div>
-                                    <Label htmlFor="start-location" className="text-xs font-semibold text-slate-400">Lieu de départ</Label>
-                                    <div className="relative flex items-center mt-1">
-                                        <Input
-                                            id="start-location"
-                                            value={startLocation}
-                                            onChange={(e) => setStartLocation(e.target.value)}
-                                            onBlur={(e) => handleLocationUpdate('start', e.target.value)}
-                                            placeholder="Hôtel, aéroport, gare..."
-                                            className="bg-slate-900/50 border-slate-700 pr-10"
-                                        />
-                                        <Button 
-                                            size="icon" 
-                                            variant="ghost" 
-                                            className={cn(
-                                                "absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8",
-                                                selectedDay?.startLat && selectedDay?.startLng 
-                                                    ? 'text-green-500 hover:text-green-400' 
-                                                    : 'text-slate-400 hover:text-primary'
-                                            )}
-                                            onClick={() => handleGeocodeDayLocation('start')}
-                                            disabled={isGeocoding === 'start' || !startLocation}
-                                            aria-label="Géolocaliser le lieu de départ"
-                                        >
-                                            {isGeocoding === 'start' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <Label htmlFor="end-location" className="text-xs font-semibold text-slate-400">Lieu de retour</Label>
-                                    <div className="relative flex items-center mt-1">
-                                        <Input
-                                            id="end-location"
-                                            value={endLocation}
-                                            onChange={(e) => setEndLocation(e.target.value)}
-                                            onBlur={(e) => handleLocationUpdate('end', e.target.value)}
-                                            placeholder="Hôtel, aéroport, gare..."
-                                            className="bg-slate-900/50 border-slate-700 pr-10"
-                                        />
-                                        <Button 
-                                            size="icon" 
-                                            variant="ghost" 
-                                            className={cn(
-                                                "absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8",
-                                                selectedDay?.endLat && selectedDay?.endLng 
-                                                    ? 'text-green-500 hover:text-green-400' 
-                                                    : 'text-slate-400 hover:text-primary'
-                                            )}
-                                            onClick={() => handleGeocodeDayLocation('end')}
-                                            disabled={isGeocoding === 'end' || !endLocation}
-                                            aria-label="Géolocaliser le lieu de retour"
-                                        >
-                                            {isGeocoding === 'end' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                                        </Button>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <div className="space-y-4">
-                            {isEventsLoading ? (
-                                <>
-                                    <Skeleton className="h-24 w-full" />
-                                    <Skeleton className="h-24 w-full" />
-                                </>
-                            ) : dayEvents.length > 0 ? (
-                                <>
-                                    {(startLocation || selectedDay?.startLat) && (
-                                        <TransportSuggestionCard 
-                                            startEvent={startOfDayEvent as any}
-                                            endEvent={dayEvents[0] as any}
-                                            savedSuggestionsJSON={selectedDay?.transportSuggestions}
-                                            onGenerate={handleGenerateTransportSuggestions as any}
-                                        />
-                                    )}
-                                    {dayEvents.map((event, index) => (
-                                    <React.Fragment key={event.id}>
-                                        <EventCard 
-                                        event={event} 
-                                        onEnrich={handleEnrichEvent} 
-                                        onAddAttachment={handleAddAttachment}
-                                        onMove={handleMoveEvent}
-                                        onGeocode={handleGeocodeEvent}
-                                        onDelete={handleDeleteEvent}
-                                        onEdit={handleOpenEventForm}
-                                        isFirst={index === 0}
-                                        isLast={index === dayEvents.length - 1}
-                                        isGeocoding={isGeocoding === event.id}
-                                        />
-                                        {index < dayEvents.length - 1 ? (
-                                            <TransportSuggestionCard 
-                                                startEvent={event as any}
-                                                endEvent={dayEvents[index + 1] as any}
-                                                savedSuggestionsJSON={event.transportSuggestions}
-                                                onGenerate={handleGenerateTransportSuggestions as any}
-                                            />
-                                        ) : (
-                                            (endLocation || selectedDay?.endLat) && (
-                                                <TransportSuggestionCard 
-                                                    startEvent={event as any}
-                                                    endEvent={endOfDayEvent as any}
-                                                    savedSuggestionsJSON={event.transportSuggestions}
-                                                    onGenerate={handleGenerateTransportSuggestions as any}
-                                                />
-                                            )
-                                        )}
-                                    </React.Fragment>
-                                    ))}
-                                </>
-                            ) : (
-                                <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
-                                    <p className="text-slate-400">Aucun événement pour ce jour.</p>
-                                </Card>
-                            )}
-                             {!isEventsLoading && (
-                                <div className="pt-4">
-                                  <Button variant="outline" className="w-full" onClick={() => handleOpenEventForm(null)}>
-                                      <PlusCircle className="mr-2 h-4 w-4" />
-                                      Ajouter un événement
-                                  </Button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Map View */}
-                <div className="bg-bg-dark h-[50vh] min-h-[400px] lg:h-auto lg:min-h-0 relative z-0">
-                    <MapView events={dayEvents} day={selectedDay} />
-                </div>
-              </>
-            ) : (
-                <div className="flex-grow flex items-center justify-center col-span-2">
-                     <Card className="col-span-full flex flex-col items-center justify-center p-12 border-dashed border-slate-700 bg-slate-800/20">
-                        <h2 className="text-xl font-semibold mb-2">Prêt à planifier ?</h2>
-                        <p className="text-slate-400 mb-6">Choisissez une option pour commencer à remplir votre itinéraire.</p>
-                        <div className="flex gap-4">
-                            <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
-                                {isGenerating === 'full' ? (
-                                    <>
-                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                    Génération...
-                                    </>
-                                ) : (
-                                    <>
-                                    <Bot className="mr-2 h-4 w-4" />
-                                    Générer avec l'IA
-                                    </>
-                                )}
-                            </Button>
-                             <Button variant="outline" onClick={handleCreateDaysManually}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Commencer manuellement
-                            </Button>
-                        </div>
-                     </Card>
-                </div>
-            )}
+          <TabsContent value="itinerary" className="flex-grow flex flex-col">
+            <div className="lg:grid lg:grid-cols-2 lg:grid-rows-1 flex-grow">
+              {days && days.length > 0 ? (
+                <>
+                  {/* Day Itinerary */}
+                  <div className="flex flex-col lg:overflow-y-auto relative z-10">
+                      {/* Day Selector */}
+                      <div className="w-full border-b border-slate-800 sticky top-0 bg-bg-dark/80 backdrop-blur-sm z-10">
+                          <div className="container mx-auto px-6">
+                              <div className="relative py-2">
+                                  <Carousel
+                                      opts={{
+                                          align: "start",
+                                          dragFree: true,
+                                      }}
+                                      className="mx-8"
+                                  >
+                                      <CarouselContent className="-ml-2">
+                                          {days.map((day, index) => {
+                                              return (
+                                                  <CarouselItem key={day.id} className="basis-auto pl-2">
+                                                      <Button
+                                                          variant={selectedDayIndex === index ? 'secondary' : 'ghost'}
+                                                          className={`flex-shrink-0 ${selectedDayIndex === index ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                                                          onClick={() => setSelectedDayIndex(index)}
+                                                      >
+                                                          Jour {day.orderIndex + 1}
+                                                      </Button>
+                                                  </CarouselItem>
+                                              )
+                                          })}
+                                      </CarouselContent>
+                                      <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
+                                      <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 hover:bg-slate-700 disabled:hidden text-foreground" />
+                                  </Carousel>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      {/* Event List */}
+                      <div className="p-6">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
+                              <h2 className="text-xl font-bold font-headline capitalize">
+                                  {dayDate ? format(dayDate, 'EEEE d MMMM', { locale: fr }) : ''}
+                              </h2>
+                              <Button onClick={handleCompleteDayWithAI} disabled={isGenerating !== false} size="sm">
+                                  {isGenerating === 'completing' ? (
+                                  <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      En cours...
+                                  </>
+                                  ) : (
+                                  <>
+                                      <Bot className="mr-2 h-4 w-4" />
+                                      Compléter la journée
+                                  </>
+                                  )}
+                              </Button>
+                          </div>
+                          
+                          <Card className="mb-6 bg-slate-800/50 border-slate-700/50">
+                              <CardContent className="p-4 space-y-4">
+                                  <div>
+                                      <Label htmlFor="start-location" className="text-xs font-semibold text-slate-400">Lieu de départ</Label>
+                                      <div className="relative flex items-center mt-1">
+                                          <Input
+                                              id="start-location"
+                                              value={startLocation}
+                                              onChange={(e) => setStartLocation(e.target.value)}
+                                              onBlur={(e) => handleLocationUpdate('start', e.target.value)}
+                                              placeholder="Hôtel, aéroport, gare..."
+                                              className="bg-slate-900/50 border-slate-700 pr-10"
+                                          />
+                                          <Button 
+                                              size="icon" 
+                                              variant="ghost" 
+                                              className={cn(
+                                                  "absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8",
+                                                  selectedDay?.startLat && selectedDay?.startLng 
+                                                      ? 'text-green-500 hover:text-green-400' 
+                                                      : 'text-slate-400 hover:text-primary'
+                                              )}
+                                              onClick={() => handleGeocodeDayLocation('start')}
+                                              disabled={isGeocoding === 'start' || !startLocation}
+                                              aria-label="Géolocaliser le lieu de départ"
+                                          >
+                                              {isGeocoding === 'start' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                                          </Button>
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <Label htmlFor="end-location" className="text-xs font-semibold text-slate-400">Lieu de retour</Label>
+                                      <div className="relative flex items-center mt-1">
+                                          <Input
+                                              id="end-location"
+                                              value={endLocation}
+                                              onChange={(e) => setEndLocation(e.target.value)}
+                                              onBlur={(e) => handleLocationUpdate('end', e.target.value)}
+                                              placeholder="Hôtel, aéroport, gare..."
+                                              className="bg-slate-900/50 border-slate-700 pr-10"
+                                          />
+                                          <Button 
+                                              size="icon" 
+                                              variant="ghost" 
+                                              className={cn(
+                                                  "absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8",
+                                                  selectedDay?.endLat && selectedDay?.endLng 
+                                                      ? 'text-green-500 hover:text-green-400' 
+                                                      : 'text-slate-400 hover:text-primary'
+                                              )}
+                                              onClick={() => handleGeocodeDayLocation('end')}
+                                              disabled={isGeocoding === 'end' || !endLocation}
+                                              aria-label="Géolocaliser le lieu de retour"
+                                          >
+                                              {isGeocoding === 'end' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                                          </Button>
+                                      </div>
+                                  </div>
+                              </CardContent>
+                          </Card>
+  
+                          <div className="space-y-4">
+                              {isEventsLoading ? (
+                                  <>
+                                      <Skeleton className="h-24 w-full" />
+                                      <Skeleton className="h-24 w-full" />
+                                  </>
+                              ) : dayEvents.length > 0 ? (
+                                  <>
+                                      {(startLocation || selectedDay?.startLat) && (
+                                          <TransportSuggestionCard 
+                                              startEvent={startOfDayEvent as any}
+                                              endEvent={dayEvents[0] as any}
+                                              savedSuggestionsJSON={selectedDay?.transportSuggestions}
+                                              onGenerate={handleGenerateTransportSuggestions as any}
+                                          />
+                                      )}
+                                      {dayEvents.map((event, index) => (
+                                      <React.Fragment key={event.id}>
+                                          <EventCard 
+                                          event={event} 
+                                          onEnrich={handleEnrichEvent} 
+                                          onAddAttachment={handleAddAttachment}
+                                          onMove={handleMoveEvent}
+                                          onGeocode={handleGeocodeEvent}
+                                          onDelete={handleDeleteEvent}
+                                          onEdit={handleOpenEventForm}
+                                          isFirst={index === 0}
+                                          isLast={index === dayEvents.length - 1}
+                                          isGeocoding={isGeocoding === event.id}
+                                          />
+                                          {index < dayEvents.length - 1 ? (
+                                              <TransportSuggestionCard 
+                                                  startEvent={event as any}
+                                                  endEvent={dayEvents[index + 1] as any}
+                                                  savedSuggestionsJSON={event.transportSuggestions}
+                                                  onGenerate={handleGenerateTransportSuggestions as any}
+                                              />
+                                          ) : (
+                                              (endLocation || selectedDay?.endLat) && (
+                                                  <TransportSuggestionCard 
+                                                      startEvent={event as any}
+                                                      endEvent={endOfDayEvent as any}
+                                                      savedSuggestionsJSON={event.transportSuggestions}
+                                                      onGenerate={handleGenerateTransportSuggestions as any}
+                                                  />
+                                              )
+                                          )}
+                                      </React.Fragment>
+                                      ))}
+                                  </>
+                              ) : (
+                                  <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
+                                      <p className="text-slate-400">Aucun événement pour ce jour.</p>
+                                  </Card>
+                              )}
+                               {!isEventsLoading && (
+                                  <div className="pt-4">
+                                    <Button variant="outline" className="w-full" onClick={() => handleOpenEventForm(null)}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Ajouter un événement
+                                    </Button>
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+                  </div>
+  
+                  {/* Map View */}
+                  <div className="bg-bg-dark h-[50vh] min-h-[400px] lg:h-auto lg:min-h-0 relative z-0">
+                      <MapView events={dayEvents} day={selectedDay} />
+                  </div>
+                </>
+              ) : (
+                  <div className="flex-grow flex items-center justify-center col-span-2">
+                       <Card className="col-span-full flex flex-col items-center justify-center p-12 border-dashed border-slate-700 bg-slate-800/20">
+                          <h2 className="text-xl font-semibold mb-2">Prêt à planifier ?</h2>
+                          <p className="text-slate-400 mb-6">Choisissez une option pour commencer à remplir votre itinéraire.</p>
+                          <div className="flex gap-4">
+                              <Button onClick={() => handleGenerateItinerary()} disabled={isGenerating !== false}>
+                                  {isGenerating === 'full' ? (
+                                      <>
+                                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                      Génération...
+                                      </>
+                                  ) : (
+                                      <>
+                                      <Bot className="mr-2 h-4 w-4" />
+                                      Générer avec l'IA
+                                      </>
+                                  )}
+                              </Button>
+                               <Button variant="outline" onClick={handleCreateDaysManually}>
+                                  <PlusCircle className="mr-2 h-4 w-4" />
+                                  Commencer manuellement
+                              </Button>
+                          </div>
+                       </Card>
+                  </div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="info" className="flex-grow overflow-y-auto bg-slate-900/50">
