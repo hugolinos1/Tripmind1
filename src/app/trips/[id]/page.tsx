@@ -90,7 +90,138 @@ const EVENT_TYPES = [
     { value: 'departure', label: 'Départ' },
 ];
 
+const DayItinerary = React.memo(({
+    day,
+    dayEvents,
+    isEventsLoading,
+    startLocation,
+    endLocation,
+    isGeocoding,
+    handleOpenEventForm,
+    handleEnrichEvent,
+    handleAddAttachment,
+    handleMoveEvent,
+    handleGeocodeEvent,
+    handleDeleteEvent,
+    handleGenerateTransportSuggestions
+}: {
+    day: Day | undefined;
+    dayEvents: EventType[];
+    isEventsLoading: boolean;
+    startLocation: string;
+    endLocation: string;
+    isGeocoding: string | null;
+    handleOpenEventForm: (event: EventType | null) => void;
+    handleEnrichEvent: (eventId: string) => Promise<void>;
+    handleAddAttachment: (eventId: string, newAttachment: Attachment) => Promise<void>;
+    handleMoveEvent: (eventId: string, direction: 'up' | 'down') => Promise<void>;
+    handleGeocodeEvent: (eventId: string) => Promise<void>;
+    handleDeleteEvent: (eventId: string) => Promise<void>;
+    handleGenerateTransportSuggestions: (startEvent: EventType, endEvent: EventType) => Promise<Suggestion[] | undefined>;
+}) => {
+    const startOfDayEvent = useMemo(() => ({
+        id: 'start-of-day',
+        title: "Lieu de départ",
+        locationName: startLocation,
+        lat: day?.startLat,
+        lng: day?.startLng,
+        type: 'activity' as const,
+        isAiEnriched: false,
+        orderIndex: -2,
+    }), [startLocation, day?.startLat, day?.startLng]);
+
+    const endOfDayEvent = useMemo(() => ({
+        id: 'end-of-day',
+        title: "Lieu de retour",
+        locationName: endLocation,
+        lat: day?.endLat,
+        lng: day?.endLng,
+        type: 'activity' as const,
+        isAiEnriched: false,
+        orderIndex: -1,
+    }), [endLocation, day?.endLat, day?.endLng]);
+
+    if (isEventsLoading) {
+        return (
+            <div className="space-y-4">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+            </div>
+        );
+    }
+
+    if (dayEvents.length === 0) {
+        return (
+            <div className="space-y-4">
+                <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
+                    <p className="text-slate-400">Aucun événement pour ce jour.</p>
+                </Card>
+                <div className="pt-4">
+                    <Button variant="outline" className="w-full" onClick={() => handleOpenEventForm(null)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Ajouter un événement
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+             {(startLocation || day?.startLat) && (
+                <TransportSuggestionCard 
+                    startEvent={startOfDayEvent as any}
+                    endEvent={dayEvents[0] as any}
+                    savedSuggestionsJSON={day?.transportSuggestions}
+                    onGenerate={handleGenerateTransportSuggestions as any}
+                />
+            )}
+            {dayEvents.map((event, index) => (
+                <React.Fragment key={event.id}>
+                    <EventCard 
+                        event={event} 
+                        onEnrich={handleEnrichEvent} 
+                        onAddAttachment={handleAddAttachment}
+                        onMove={handleMoveEvent}
+                        onGeocode={handleGeocodeEvent}
+                        onDelete={handleDeleteEvent}
+                        onEdit={handleOpenEventForm}
+                        isFirst={index === 0}
+                        isLast={index === dayEvents.length - 1}
+                        isGeocoding={isGeocoding === event.id}
+                    />
+                    {index < dayEvents.length - 1 ? (
+                        <TransportSuggestionCard 
+                            startEvent={event as any}
+                            endEvent={dayEvents[index + 1] as any}
+                            savedSuggestionsJSON={event.transportSuggestions}
+                            onGenerate={handleGenerateTransportSuggestions as any}
+                        />
+                    ) : (
+                        (endLocation || day?.endLat) && (
+                            <TransportSuggestionCard 
+                                startEvent={event as any}
+                                endEvent={endOfDayEvent as any}
+                                savedSuggestionsJSON={event.transportSuggestions}
+                                onGenerate={handleGenerateTransportSuggestions as any}
+                            />
+                        )
+                    )}
+                </React.Fragment>
+            ))}
+            <div className="pt-4">
+                <Button variant="outline" className="w-full" onClick={() => handleOpenEventForm(null)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Ajouter un événement
+                </Button>
+            </div>
+        </div>
+    );
+});
+
+
 export default function TripEditorPage({ params }: { params: { id: string } }) {
+
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -994,6 +1125,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                       </div>
                       
                       {/* Event List */}
+                      {/* Main day itinerary logic extracted to a separate memoized component to prevent re-render storm */}
                       <div className="p-6">
                           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
                               <h2 className="text-xl font-bold font-headline capitalize">
@@ -1075,71 +1207,23 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                               </CardContent>
                           </Card>
   
-                          <div className="space-y-4">
-                              {isEventsLoading ? (
-                                  <>
-                                      <Skeleton className="h-24 w-full" />
-                                      <Skeleton className="h-24 w-full" />
-                                  </>
-                              ) : dayEvents.length > 0 ? (
-                                  <>
-                                      {(startLocation || selectedDay?.startLat) && (
-                                          <TransportSuggestionCard 
-                                              startEvent={startOfDayEvent as any}
-                                              endEvent={dayEvents[0] as any}
-                                              savedSuggestionsJSON={selectedDay?.transportSuggestions}
-                                              onGenerate={handleGenerateTransportSuggestions as any}
-                                          />
-                                      )}
-                                      {dayEvents.map((event, index) => (
-                                      <React.Fragment key={event.id}>
-                                          <EventCard 
-                                          event={event} 
-                                          onEnrich={handleEnrichEvent} 
-                                          onAddAttachment={handleAddAttachment}
-                                          onMove={handleMoveEvent}
-                                          onGeocode={handleGeocodeEvent}
-                                          onDelete={handleDeleteEvent}
-                                          onEdit={handleOpenEventForm}
-                                          isFirst={index === 0}
-                                          isLast={index === dayEvents.length - 1}
-                                          isGeocoding={isGeocoding === event.id}
-                                          />
-                                          {index < dayEvents.length - 1 ? (
-                                              <TransportSuggestionCard 
-                                                  startEvent={event as any}
-                                                  endEvent={dayEvents[index + 1] as any}
-                                                  savedSuggestionsJSON={event.transportSuggestions}
-                                                  onGenerate={handleGenerateTransportSuggestions as any}
-                                              />
-                                          ) : (
-                                              (endLocation || selectedDay?.endLat) && (
-                                                  <TransportSuggestionCard 
-                                                      startEvent={event as any}
-                                                      endEvent={endOfDayEvent as any}
-                                                      savedSuggestionsJSON={event.transportSuggestions}
-                                                      onGenerate={handleGenerateTransportSuggestions as any}
-                                                  />
-                                              )
-                                          )}
-                                      </React.Fragment>
-                                      ))}
-                                  </>
-                              ) : (
-                                  <Card className="text-center p-8 border-dashed border-slate-700 bg-slate-800/20">
-                                      <p className="text-slate-400">Aucun événement pour ce jour.</p>
-                                  </Card>
-                              )}
-                               {!isEventsLoading && (
-                                  <div className="pt-4">
-                                    <Button variant="outline" className="w-full" onClick={() => handleOpenEventForm(null)}>
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Ajouter un événement
-                                    </Button>
-                                  </div>
-                              )}
-                          </div>
+                          <DayItinerary 
+                            day={selectedDay}
+                            dayEvents={dayEvents}
+                            isEventsLoading={isEventsLoading}
+                            startLocation={startLocation}
+                            endLocation={endLocation}
+                            isGeocoding={isGeocoding as string | null}
+                            handleOpenEventForm={handleOpenEventForm}
+                            handleEnrichEvent={handleEnrichEvent}
+                            handleAddAttachment={handleAddAttachment}
+                            handleMoveEvent={handleMoveEvent}
+                            handleGeocodeEvent={handleGeocodeEvent}
+                            handleDeleteEvent={handleDeleteEvent}
+                            handleGenerateTransportSuggestions={handleGenerateTransportSuggestions}
+                          />
                       </div>
+
                   </div>
   
                   {/* Map View */}
