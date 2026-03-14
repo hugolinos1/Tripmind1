@@ -168,79 +168,89 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     }, 0);
   }, [eventForm]);
 
-  const handleEventFormSubmit = useCallback(async (values: EventFormValues) => {
+  const handleEventFormSubmit = useCallback((values: EventFormValues) => {
     if (!user || !firestore || !selectedDayId) {
         toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
         return;
     }
     
+    // 1. Close the dialog and clear selection immediately for instant responsive UI
     setIsEventFormOpen(false);
-
-    toast({
-        title: currentEvent ? "Mise à jour en cours..." : "Ajout en cours...",
-        description: `L'événement "${values.title}" est en cours de sauvegarde.`,
-    });
-
-    try {
-        if (currentEvent) {
-            // Edit existing event
-            const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
-            const dataToUpdate = {
-                title: values.title,
-                type: values.type,
-                startTime: values.startTime || null,
-                durationMinutes: values.durationMinutes || null,
-                locationName: values.locationName || '',
-                notes: values.notes || '',
-                updatedAt: serverTimestamp(),
-            };
-            await updateDocumentNonBlocking(eventRef, dataToUpdate);
-        } else {
-            // Add new event
-            const orderIndex = eventsRef.current?.length || 0;
-            const eventId = uuidv4();
-            const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
-            
-            const eventData = {
-                id: eventId,
-                dayId: selectedDayId,
-                type: values.type,
-                title: values.title,
-                description: '',
-                notes: values.notes || '',
-                startTime: values.startTime || null,
-                durationMinutes: values.durationMinutes || null,
-                locationName: values.locationName || '',
-                lat: null,
-                lng: null,
-                orderIndex: orderIndex,
-                isAiEnriched: false,
-                photos: [],
-                practicalInfo: JSON.stringify({}),
-                attachments: [],
-                transportSuggestions: null,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            };
-            await setDocumentNonBlocking(eventRef, eventData, { merge: false });
-        }
-
-        toast({
-            title: currentEvent ? "Événement mis à jour !" : "Événement ajouté !",
-            description: `L'événement "${values.title}" a été sauvegardé.`,
-        });
-    } catch (error) {
-        console.error("Failed to save event:", error);
-        toast({
-            variant: "destructive",
-            title: "Oh non ! Une erreur est survenue.",
-            description: "Impossible d'enregistrer l'événement. Veuillez réessayer.",
-        });
-    }
-
+    const editingEvent = currentEvent;
     setCurrentEvent(null);
+
+    // 2. Perform the save operation in a detached async block
+    // (This ensures React Hook Form's isSubmitting finishes quickly and doesn't block the main thread)
+    (async () => {
+        toast({
+            title: editingEvent ? "Mise à jour en cours..." : "Ajout en cours...",
+            description: `L'événement "${values.title}" est en cours de sauvegarde.`,
+        });
+
+        try {
+            if (editingEvent) {
+                // Edit existing event
+                const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', editingEvent.id);
+                const dataToUpdate = {
+                    title: values.title,
+                    type: values.type,
+                    startTime: values.startTime || null,
+                    durationMinutes: values.durationMinutes || null,
+                    locationName: values.locationName || '',
+                    notes: values.notes || '',
+                    updatedAt: serverTimestamp(),
+                };
+                // We don't await here to avoid blocking any further, 
+                // but we let it run in this background fiber.
+                updateDocumentNonBlocking(eventRef, dataToUpdate);
+            } else {
+                // Add new event
+                const orderIndex = eventsRef.current?.length || 0;
+                const eventId = uuidv4();
+                const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
+                
+                const eventData = {
+                    id: eventId,
+                    dayId: selectedDayId,
+                    type: values.type,
+                    title: values.title,
+                    description: '',
+                    notes: values.notes || '',
+                    startTime: values.startTime || null,
+                    durationMinutes: values.durationMinutes || null,
+                    locationName: values.locationName || '',
+                    lat: null,
+                    lng: null,
+                    orderIndex: orderIndex,
+                    isAiEnriched: false,
+                    photos: [],
+                    practicalInfo: JSON.stringify({}),
+                    attachments: [],
+                    transportSuggestions: null,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                };
+                setDocumentNonBlocking(eventRef, eventData, { merge: false });
+            }
+
+            toast({
+                title: editingEvent ? "Événement mis à jour !" : "Événement ajouté !",
+                description: `L'événement "${values.title}" a été sauvegardé.`,
+            });
+        } catch (error) {
+            console.error("Failed to save event:", error);
+            toast({
+                variant: "destructive",
+                title: "Oh non ! Une erreur est survenue.",
+                description: "Impossible d'enregistrer l'événement. Veuillez réessayer.",
+            });
+        }
+    })();
+
+    // 3. Reset the form immediately after launching the background task
     eventForm.reset();
   }, [currentEvent, firestore, user, tripId, selectedDayId, toast, eventForm]);
+
 
   // Reset selected day if days change
   useEffect(() => {
