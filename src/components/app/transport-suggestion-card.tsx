@@ -6,8 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Sparkles,
   Loader2,
-  Walk,
+  Footprints,
   Bus,
+
   Car,
   Bike,
   HelpCircle,
@@ -34,8 +35,9 @@ export interface TransportSuggestionCardProps {
 }
 
 const modeIcons: Record<string, React.ElementType> = {
-  walking: Walk,
+  walking: Footprints,
   bus: Bus,
+
   metro: Train,
   train: Train,
   public_transport: Bus,
@@ -199,14 +201,18 @@ function propsAreEqual(prevProps: Readonly<TransportSuggestionCardProps>, nextPr
     if (prevProps.savedSuggestionsJSON !== nextProps.savedSuggestionsJSON) {
         return false;
     }
-    if (JSON.stringify(prevProps.startEvent) !== JSON.stringify(nextProps.startEvent)) {
-        return false;
-    }
-    if (JSON.stringify(prevProps.endEvent) !== JSON.stringify(nextProps.endEvent)) {
-        return false;
-    }
-    // Functions are assumed to be stable.
-    return true;
+    
+    const ps = prevProps.startEvent;
+    const ns = nextProps.startEvent;
+    const pe = prevProps.endEvent;
+    const ne = nextProps.endEvent;
+
+    // Shallow comparison of essential fields to avoid expensive stringification
+    const startEventEqual = ps.id === ns.id && ps.title === ns.title && ps.lat === ns.lat && ps.lng === ns.lng && ps.locationName === ns.locationName;
+    const endEventEqual = pe.id === ne.id && pe.title === ne.title && pe.lat === ne.lat && pe.lng === ne.lng && pe.locationName === ne.locationName;
+
+    return startEventEqual && endEventEqual;
 }
+
 
 export const TransportSuggestionCard = React.memo(TransportSuggestionCardComponent, propsAreEqual);

@@ -69,7 +69,7 @@ interface Day {
 const eventFormSchema = z.object({
     title: z.string().min(3, { message: 'Le titre doit contenir au moins 3 caractères.' }),
     notes: z.string().optional(),
-    type: z.enum(['activity', 'visit', 'meal', 'transport', 'accommodation'], { required_error: 'Veuillez sélectionner un type.'}),
+    type: z.string().min(1, { message: 'Veuillez sélectionner un type.' }),
     startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Format HH:mm invalide.' }).optional().or(z.literal('')),
     durationMinutes: z.coerce.number().int().positive().optional(),
     locationName: z.string().optional(),
@@ -78,6 +78,17 @@ const eventFormSchema = z.object({
 type EventFormValues = z.infer<typeof eventFormSchema>;
   
 type Suggestion = TransportSuggestionOutput['suggestions'][0];
+
+// Allowed types for the Select component
+const EVENT_TYPES = [
+    { value: 'activity', label: 'Activité' },
+    { value: 'visit', label: 'Visite' },
+    { value: 'meal', label: 'Repas' },
+    { value: 'transport', label: 'Transport' },
+    { value: 'accommodation', label: 'Hébergement' },
+    { value: 'arrival', label: 'Arrivée' },
+    { value: 'departure', label: 'Départ' },
+];
 
 export default function TripEditorPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
@@ -147,10 +158,13 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     setIsEventFormOpen(true);
     setTimeout(() => {
         if (event) {
+            // Check if the event type is in our allowed list, otherwise fallback to activity or the original string
+            const eventType = event.type as string;
+            
             eventForm.reset({
                 title: event.title || '',
                 notes: event.notes || '',
-                type: event.type || 'activity',
+                type: eventType || 'activity',
                 startTime: event.startTime || '',
                 durationMinutes: event.durationMinutes || undefined,
                 locationName: event.locationName || '',
@@ -167,6 +181,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         }
     }, 0);
   }, [eventForm]);
+
 
   const handleEventFormSubmit = useCallback((values: EventFormValues) => {
     if (!user || !firestore || !selectedDayId) {
@@ -1196,16 +1211,20 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                       <FormField control={eventForm.control} name="type" render={({ field }) => (
                           <FormItem>
                               <FormLabel>Type</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un type" /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                      <SelectItem value="activity">Activité</SelectItem>
-                                      <SelectItem value="visit">Visite</SelectItem>
-                                      <SelectItem value="meal">Repas</SelectItem>
-                                      <SelectItem value="transport">Transport</SelectItem>
-                                      <SelectItem value="accommodation">Hébergement</SelectItem>
-                                  </SelectContent>
-                              </Select>
+                              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                            <FormControl>
+                                            <SelectTrigger className="bg-slate-900/50 border-slate-700">
+                                                <SelectValue placeholder="Type d'activité" />
+                                            </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {EVENT_TYPES.map((type) => (
+                                                    <SelectItem key={type.value} value={type.value}>
+                                                        {type.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                               <FormMessage />
                           </FormItem>
                       )}/>

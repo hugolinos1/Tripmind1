@@ -12,6 +12,7 @@ import { useState, useRef } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
+
 type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
 
 export interface Attachment {
@@ -36,9 +37,11 @@ export interface Event {
   lat?: number;
   lng?: number;
   attachments?: Attachment[];
+  photos?: string[];
   transportSuggestions?: string;
   orderIndex: number;
 }
+
 
 export interface EventCardProps {
     event: Event;
@@ -109,7 +112,7 @@ const EventCardComponent = (props: EventCardProps) => {
   return (
     <Card className={`border-l-4 ${config.color} border-y-slate-800 border-r-slate-800 bg-slate-800/30 group hover:bg-slate-800/60 transition-colors`}>
       <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-      <CardContent className="p-4 flex gap-4 items-start">
+      <CardContent className="p-4 flex gap-3 items-start">
         <div className="flex-grow">
           <div className="flex justify-between items-start mb-2">
             <div className="flex items-center gap-2">
@@ -278,10 +281,28 @@ function propsAreEqual(prevProps: Readonly<EventCardProps>, nextProps: Readonly<
     return false;
   }
   
-  // Functions are assumed to be stable via useCallback in the parent.
-  // We only need to compare the `event` data deeply.
-  return JSON.stringify(prevProps.event) === JSON.stringify(nextProps.event);
+  const p = prevProps.event;
+  const n = nextProps.event;
+
+  // Selective field comparison to avoid expensive stringification of large objects (e.g., practicalInfo)
+  return (
+    p.id === n.id &&
+    p.title === n.title &&
+    p.type === n.type &&
+    p.startTime === n.startTime &&
+    p.durationMinutes === n.durationMinutes &&
+    p.locationName === n.locationName &&
+    p.lat === n.lat &&
+    p.lng === n.lng &&
+    p.isAiEnriched === n.isAiEnriched &&
+    p.description === n.description &&
+    p.notes === n.notes &&
+    p.orderIndex === n.orderIndex &&
+    (p.photos?.length === n.photos?.length) &&
+    (p.attachments?.length === n.attachments?.length)
+  );
 }
+
 
 const EventCard = React.memo(EventCardComponent, propsAreEqual);
 
