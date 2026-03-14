@@ -176,68 +176,60 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
     
     setIsEventFormOpen(false);
 
-    const eventPromise = new Promise(async (resolve, reject) => {
-        try {
-            if (currentEvent) {
-                // Edit existing event
-                const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
-                const dataToUpdate = {
-                    title: values.title,
-                    type: values.type,
-                    startTime: values.startTime || null,
-                    durationMinutes: values.durationMinutes || null,
-                    locationName: values.locationName || '',
-                    notes: values.notes || '',
-                    updatedAt: serverTimestamp(),
-                };
-                await updateDoc(eventRef, dataToUpdate);
-            } else {
-                // Add new event
-                const orderIndex = eventsRef.current?.length || 0;
-                const eventId = uuidv4();
-                const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
-                
-                const eventData = {
-                    id: eventId,
-                    dayId: selectedDayId,
-                    type: values.type,
-                    title: values.title,
-                    description: '',
-                    notes: values.notes || '',
-                    startTime: values.startTime || null,
-                    durationMinutes: values.durationMinutes || null,
-                    locationName: values.locationName || '',
-                    lat: null,
-                    lng: null,
-                    orderIndex: orderIndex,
-                    isAiEnriched: false,
-                    photos: [],
-                    practicalInfo: JSON.stringify({}),
-                    attachments: [],
-                    transportSuggestions: null,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                };
-                await setDocumentNonBlocking(eventRef, eventData, { merge: false });
-            }
-            resolve(true);
-        } catch (error) {
-            reject(error);
-        }
-    });
-
     toast({
         title: currentEvent ? "Mise à jour en cours..." : "Ajout en cours...",
         description: `L'événement "${values.title}" est en cours de sauvegarde.`,
     });
 
     try {
-        await eventPromise;
+        if (currentEvent) {
+            // Edit existing event
+            const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
+            const dataToUpdate = {
+                title: values.title,
+                type: values.type,
+                startTime: values.startTime || null,
+                durationMinutes: values.durationMinutes || null,
+                locationName: values.locationName || '',
+                notes: values.notes || '',
+                updatedAt: serverTimestamp(),
+            };
+            await updateDocumentNonBlocking(eventRef, dataToUpdate);
+        } else {
+            // Add new event
+            const orderIndex = eventsRef.current?.length || 0;
+            const eventId = uuidv4();
+            const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
+            
+            const eventData = {
+                id: eventId,
+                dayId: selectedDayId,
+                type: values.type,
+                title: values.title,
+                description: '',
+                notes: values.notes || '',
+                startTime: values.startTime || null,
+                durationMinutes: values.durationMinutes || null,
+                locationName: values.locationName || '',
+                lat: null,
+                lng: null,
+                orderIndex: orderIndex,
+                isAiEnriched: false,
+                photos: [],
+                practicalInfo: JSON.stringify({}),
+                attachments: [],
+                transportSuggestions: null,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            };
+            await setDocumentNonBlocking(eventRef, eventData, { merge: false });
+        }
+
         toast({
             title: currentEvent ? "Événement mis à jour !" : "Événement ajouté !",
             description: `L'événement "${values.title}" a été sauvegardé.`,
         });
-    } catch(error) {
+    } catch (error) {
         console.error("Failed to save event:", error);
         toast({
             variant: "destructive",
