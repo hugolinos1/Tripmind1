@@ -12,13 +12,14 @@ const eventTypeColors = {
   transport: '#0ea5e9',
   accommodation: '#10b981',
   activity: '#a855f7',
+  shopping: '#6366f1',
   start: '#22c55e', // green-500
   end: '#ef4444',   // red-500
 };
 
 type Event = {
   id: string;
-  type: 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
+  type: 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity' | 'shopping';
   title: string;
   lat?: number;
   lng?: number;

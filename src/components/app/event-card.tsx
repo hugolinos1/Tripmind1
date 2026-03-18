@@ -4,7 +4,7 @@
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe, Paperclip, FileText, PlusCircle, ArrowUp, ArrowDown } from "lucide-react";
+import { Clock, Edit, Home, Info, MapPin, MoreVertical, Sparkles, Star, Bus, Trash2, Utensils, Loader2, ChevronDown, Globe, Paperclip, FileText, PlusCircle, ArrowUp, ArrowDown, ShoppingBag } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
@@ -12,7 +12,7 @@ import { useState, useRef } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
+type EventType = 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity' | 'shopping';
 
 export interface Attachment {
   id: string;
@@ -59,6 +59,7 @@ const eventTypeConfig = {
   transport: { color: "border-event-transport", icon: Bus },
   accommodation: { color: "border-event-accommodation", icon: Home },
   activity: { color: "border-event-activity", icon: Star },
+  shopping: { color: "border-event-shopping", icon: ShoppingBag },
 };
 
 const EventCardComponent = (props: EventCardProps) => {

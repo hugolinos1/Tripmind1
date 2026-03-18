@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -61,6 +62,7 @@ export default {
           transport: '#0ea5e9',
           accommodation: '#10b981',
           activity: '#a855f7',
+          shopping: '#6366f1',
         }
       },
       borderRadius: {

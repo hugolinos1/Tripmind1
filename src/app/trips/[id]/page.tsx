@@ -69,7 +69,7 @@ interface Day {
 const eventFormSchema = z.object({
     title: z.string().min(3, { message: 'Le titre doit contenir au moins 3 caractères.' }),
     notes: z.string().optional(),
-    type: z.enum(['activity', 'visit', 'meal', 'transport', 'accommodation'], { required_error: 'Veuillez sélectionner un type.'}),
+    type: z.enum(['activity', 'visit', 'meal', 'transport', 'accommodation', 'shopping'], { required_error: 'Veuillez sélectionner un type.'}),
     startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Format HH:mm invalide.' }).optional().or(z.literal('')),
     durationMinutes: z.coerce.number().int().positive().optional(),
     locationName: z.string().optional(),
@@ -173,59 +173,53 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
         toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de sauvegarder l'événement." });
         return;
     }
+
+    const eventPromise = (async () => {
+        if (currentEvent) {
+            // Edit existing event
+            const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
+            const dataToUpdate = {
+                title: values.title,
+                notes: values.notes || '',
+                type: values.type,
+                startTime: values.startTime || null,
+                durationMinutes: values.durationMinutes || null,
+                locationName: values.locationName || '',
+                updatedAt: serverTimestamp(),
+            };
+            await updateDoc(eventRef, dataToUpdate);
+        } else {
+            // Add new event
+            const orderIndex = eventsRef.current?.length || 0;
+            const eventId = uuidv4();
+            const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
+            
+            const eventData = {
+                id: eventId,
+                dayId: selectedDayId,
+                type: values.type,
+                title: values.title,
+                description: '',
+                notes: values.notes || '',
+                startTime: values.startTime || null,
+                durationMinutes: values.durationMinutes || null,
+                locationName: values.locationName || '',
+                lat: null,
+                lng: null,
+                orderIndex: orderIndex,
+                isAiEnriched: false,
+                photos: [],
+                practicalInfo: JSON.stringify({}),
+                attachments: [],
+                transportSuggestions: null,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            };
+            await setDocumentNonBlocking(eventRef, eventData, { merge: false });
+        }
+    })();
     
     setIsEventFormOpen(false);
-
-    const eventPromise = new Promise(async (resolve, reject) => {
-        try {
-            if (currentEvent) {
-                // Edit existing event
-                const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', currentEvent.id);
-                const dataToUpdate = {
-                    title: values.title,
-                    type: values.type,
-                    startTime: values.startTime || null,
-                    durationMinutes: values.durationMinutes || null,
-                    locationName: values.locationName || '',
-                    notes: values.notes || '',
-                    updatedAt: serverTimestamp(),
-                };
-                await updateDoc(eventRef, dataToUpdate);
-            } else {
-                // Add new event
-                const orderIndex = eventsRef.current?.length || 0;
-                const eventId = uuidv4();
-                const eventRef = doc(firestore, 'users', user.uid, 'trips', tripId, 'days', selectedDayId, 'events', eventId);
-                
-                const eventData = {
-                    id: eventId,
-                    dayId: selectedDayId,
-                    type: values.type,
-                    title: values.title,
-                    description: '',
-                    notes: values.notes || '',
-                    startTime: values.startTime || null,
-                    durationMinutes: values.durationMinutes || null,
-                    locationName: values.locationName || '',
-                    lat: null,
-                    lng: null,
-                    orderIndex: orderIndex,
-                    isAiEnriched: false,
-                    photos: [],
-                    practicalInfo: JSON.stringify({}),
-                    attachments: [],
-                    transportSuggestions: null,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                };
-                await setDocumentNonBlocking(eventRef, eventData, { merge: false });
-            }
-            resolve(true);
-        } catch (error) {
-            reject(error);
-        }
-    });
-
     toast({
         title: currentEvent ? "Mise à jour en cours..." : "Ajout en cours...",
         description: `L'événement "${values.title}" est en cours de sauvegarde.`,
@@ -1202,6 +1196,7 @@ export default function TripEditorPage({ params }: { params: { id: string } }) {
                                       <SelectItem value="meal">Repas</SelectItem>
                                       <SelectItem value="transport">Transport</SelectItem>
                                       <SelectItem value="accommodation">Hébergement</SelectItem>
+                                      <SelectItem value="shopping">Shopping</SelectItem>
                                   </SelectContent>
                               </Select>
                               <FormMessage />

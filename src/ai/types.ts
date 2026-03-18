@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 // From ai-enrich-event-details.ts
@@ -33,7 +34,7 @@ export interface GenerateItineraryInput {
 }
 
 export type EventPlan = {
-    type: 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity';
+    type: 'visit' | 'meal' | 'transport' | 'accommodation' | 'activity' | 'shopping';
     title: string;
     description?: string;
     startTime: string; // "HH:mm"
@@ -107,7 +108,7 @@ export type GeocodeOutput = z.infer<typeof GeocodeOutputSchema>;
 // From ai-complete-day-itinerary.ts
 const CompletedEventSchema = z.object({
     id: z.string().optional(),
-    type: z.enum(['visit', 'meal', 'transport', 'accommodation', 'activity']),
+    type: z.enum(['visit', 'meal', 'transport', 'accommodation', 'activity', 'shopping']),
     title: z.string(),
     description: z.string().optional().nullable(),
     startTime: z.string().optional().nullable(), // "HH:mm"
