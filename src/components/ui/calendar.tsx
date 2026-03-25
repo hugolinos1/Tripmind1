@@ -1,64 +1,172 @@
 "use client"
 
 import * as React from "react"
+import {
+  format,
+  addMonths,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  getDay,
+  isSameDay,
+  isAfter,
+  isBefore,
+} from "date-fns"
+import { fr } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
-
 import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+// Keep props for compatibility, but many will not be used in this simpler component
+export type CalendarProps = {
+  mode?: "single" | "range"
+  selected?: Date | { from?: Date; to?: Date }
+  onSelect?: (date: Date | { from?: Date; to?: Date } | undefined) => void
+  className?: string
+  numberOfMonths?: number
+  locale?: any
+  disabled?: any
+  showOutsideDays?: any
+}
 
 function Calendar({
   className,
-  classNames,
-  showOutsideDays = true,
+  mode = "range",
+  selected,
+  onSelect,
   ...props
 }: CalendarProps) {
+  // Determine the initial date to display, defaulting to today
+  const getInitialDate = () => {
+    if (mode === 'range' && selected && 'from' in selected && selected.from) {
+      return selected.from;
+    }
+    if (mode === 'single' && selected instanceof Date) {
+      return selected;
+    }
+    return new Date();
+  }
+
+  const [displayDate, setDisplayDate] = React.useState(getInitialDate())
+
+  const handlePrevMonth = () => {
+    setDisplayDate(subMonths(displayDate, 1))
+  }
+
+  const handleNextMonth = () => {
+    setDisplayDate(addMonths(displayDate, 1))
+  }
+  
+  const handleDayClick = (day: Date) => {
+    if (!onSelect) return;
+
+    if (mode === "single") {
+      onSelect(day);
+    } else if (mode === "range") {
+      const range = selected as { from?: Date; to?: Date };
+      if (!range?.from || range.to) {
+        // Either no start date, or the range is complete, so start a new range.
+        onSelect({ from: day, to: undefined });
+      } else {
+        // `from` date exists, so we are setting the `to` date.
+        if (isBefore(day, range.from)) {
+          // If the new date is before the start date, start a new range with the new date.
+          onSelect({ from: day, to: undefined });
+        } else {
+          // Otherwise, complete the range.
+          onSelect({ from: range.from, to: day });
+        }
+      }
+    }
+  };
+
+  const weekDays = ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"];
+  const firstDayOfMonth = startOfMonth(displayDate);
+  const daysInMonth = eachDayOfInterval({start: firstDayOfMonth, end: endOfMonth(displayDate)});
+  
+  // Get the day of the week for the first day of the month (0=Sun, 1=Mon,...)
+  const firstDayOfWeek = getDay(firstDayOfMonth);
+  
+  // Create an array of empty placeholders for days before the 1st to align the grid
+  const emptyDays = Array.from({ length: firstDayOfWeek }, (_, i) => i);
+
   return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
-      classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
-        ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-        day: cn(
-          buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
-        ),
-        day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
-        day_outside: "text-muted-foreground opacity-50",
-        day_disabled: "text-muted-foreground opacity-50",
-        day_range_middle:
-          "aria-selected:bg-accent aria-selected:text-accent-foreground",
-        day_hidden: "invisible",
-        ...classNames,
-      }}
-      components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-      }}
-      {...props}
-    />
+    <div className={cn("w-fit bg-card text-card-foreground border rounded-md p-2", className)}>
+      {/* Header with month/year and navigation */}
+      <div className="flex items-center justify-between text-sm font-semibold mb-2">
+        <button
+          onClick={handlePrevMonth}
+          className="p-1 border border-input rounded-sm hover:bg-accent focus:outline-none"
+          aria-label="Mois précédent"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div className="capitalize" aria-live="polite">
+          {format(displayDate, "MMMM yyyy", { locale: fr })}
+        </div>
+        <button
+          onClick={handleNextMonth}
+          className="p-1 border border-input rounded-sm hover:bg-accent focus:outline-none"
+          aria-label="Mois suivant"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Grid for the days */}
+      <div className="grid grid-cols-7 text-center">
+        {/* Week Day Headers */}
+        {weekDays.map((day) => (
+          <div key={day} className="text-xs font-medium text-muted-foreground w-8 h-8 flex items-center justify-center">
+            {day}
+          </div>
+        ))}
+
+        {/* Empty cells for alignment */}
+        {emptyDays.map((_, index) => (
+          <div key={`empty-${index}`} className="w-8 h-8"></div>
+        ))}
+
+        {/* Dates */}
+        {daysInMonth.map((day) => {
+            let isSelected = false;
+            let isInRange = false;
+            let isRangeStart = false;
+            let isRangeEnd = false;
+
+            if (mode === 'range' && selected) {
+                const range = selected as { from?: Date; to?: Date };
+                isRangeStart = !!range.from && isSameDay(day, range.from);
+                isRangeEnd = !!range.to && isSameDay(day, range.to);
+                isSelected = isRangeStart || isRangeEnd;
+                // A day is in range if it's between a defined start and end
+                isInRange = !!(range.from && range.to) && isAfter(day, range.from) && isBefore(day, range.to);
+            } else if (mode === 'single' && selected) {
+                isSelected = isSameDay(day, selected as Date);
+            }
+
+            return (
+              <button
+                key={day.toString()}
+                onClick={() => handleDayClick(day)}
+                className={cn(
+                  "w-8 h-8 text-sm flex items-center justify-center rounded-sm transition-colors",
+                  "hover:bg-accent/50",
+                  // Apply range background if it's between start and end
+                  isInRange && "bg-accent/30",
+                  // Apply selected style for single dates or range start/end
+                  isSelected && "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {format(day, "d")}
+              </button>
+            )
+        })}
+      </div>
+    </div>
   )
 }
+
 Calendar.displayName = "Calendar"
 
 export { Calendar }
