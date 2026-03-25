@@ -50,7 +50,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const availableInterests = ['Culture', 'Gastronomie', 'Nature', 'Histoire', 'Art', 'Sport', 'Shopping', 'Détente', 'Aventure', 'Plage'];
+const availableInterests = ['Culture', 'Gastronomie', 'Nature', 'Histoire', 'Art', 'Sport', 'Shopping', 'Détente', 'Aventure', 'Plage', 'Divertissement'];
 
 export default function EditTripPage() {
   const router = useRouter();
@@ -502,3 +502,5 @@ export default function EditTripPage() {
     </div>
   );
 }
+
+    
